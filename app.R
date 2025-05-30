@@ -22,7 +22,6 @@ color_secondary <- "#636363"    # Grey for secondary elements
 #### UI ####
 # ────────────────────────────────────────────────────────────────
 ui <- fluidPage(
-  enableBookmarking("url"),
   tags$head(tags$link(rel = "icon", href = "company_logo.png", type = "image/png")),
   navbarPage(
     theme = shinytheme("flatly"),
