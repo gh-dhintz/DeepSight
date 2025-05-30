@@ -1,0 +1,31 @@
+---
+title: "hmtl"
+format: html
+params:
+  xvar: null   
+---
+
+
+# Dynamic Report
+
+Here is my regression model:
+
+```{r model, collapse=TRUE}
+options(digits = 4)
+
+cat("xvar:", params$xvar, "\n")
+fml <- as.formula(paste("mpg ~", params$xvar))
+fit <- lm(fml, data = mtcars)
+b <- coef(fit)
+summary(fit)
+```
+
+The fitting result is $mpg = `r b[1]` + `r b[2]``r params$xvar`$.
+Below is a scatter plot with the regression line.
+
+```{r plot, fig.height=5}
+par(mar = c(4, 4, 1, 1))
+plot(as.formula(paste('mpg ~', params$xvar)), data = mtcars, pch = 19, col = 'gray')
+abline(fit, col = 'red', lwd = 2)
+```
+

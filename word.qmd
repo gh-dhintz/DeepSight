@@ -1,0 +1,117 @@
+---
+title: "Document title"   
+subtitle: "Subtitle of document"
+author: "Author name(s)"
+date: "`r Sys.Date()`"
+### Uncomment the following line if a summary should be shown after the title 
+# abstract: "Lorem ipsum dolor sit amet, consetetur sadipscing elitr." 
+lang: en # German would be 'de'
+### Comment or remove the following two lines if NO references are used
+#bibliography: [bib/references.bib, bib/packages.bib] # Path to bibliography files 
+#csl: bib/sage-harvard.csl                            # Path to reference style file
+### Settings for rendering the document:
+format: 
+  docx:
+    toc: false
+    toc-depth: 3
+    toc-title: Contents
+    number-sections: true
+    reference-doc: "uhh-template-helvetica.docx"
+    crossref: 
+      chapters: false     # set to 'true' if figure numbering should follow subsections
+      fig-prefix: Fig.    # (default is 'Figure'; adjust if language is German)
+    # Code options:
+    highlight-style: arrow # default
+execute:
+  echo: false
+  warning: false
+  message: false
+editor: source
+params:
+  xvarA: null
+  xvarB: null
+---
+
+# Dynamic Report
+
+Here is my regression model:
+
+```{r model, collapse=TRUE}
+#| label: tbl-mtcars
+#| tbl-cap: "This is a table of mtcars"
+
+options(digits = 4)
+
+cat("xvar:", params$xvar, "\n")
+fml <- as.formula(paste("mpg ~", params$xvar))
+fit <- lm(fml, data = mtcars)
+b <- coef(fit)
+knitr::kable(summary(fit)$coefficients,longtable = TRUE,booktabs = TRUE)
+```
+
+The fitting result is $mpg = `r b[1]` + `r b[2]``r params$xvar`$.
+Below is a scatter plot with the regression line.
+
+Notice I can reference above using @tbl-mtcars.
+
+```{r plot, fig.height=5}
+par(mar = c(4, 4, 1, 1))
+plot(as.formula(paste('mpg ~', params$xvar)), data = mtcars, pch = 19, col = 'gray')
+abline(fit, col = 'red', lwd = 2)
+```
+
+Next in in @sec-callouts we will look at Callouts. Note you can also reference code chunks ie see @lst-codeblock.
+
+``` {.r #lst-codeblock lst-cap="Example for a referenceable code block"}
+4+4
+```
+
+## Callout blocks {#sec-callouts}
+
+Quarto provides five different types of callouts that are an excellent way to draw extra attention to certain concepts. 
+
+::: callout-note
+The color and icon will be different depending upon the type that you select. You can choose between: `note`, `warning`, `important`, `tip`, and `caution`.
+:::
+
+::: callout-tip
+## Tip With Caption
+
+This is an example of a callout with a caption.
+:::
+
+
+
+## Mathematical equations
+
+Use mathematics as usual with the dollar sign `$` at the beginning and end of the equation; either in **inline mode** with one dollar sign such as $E = mc^2$ or in **display mode** with two dollar signs: $$E = mc^2$$
+
+Important to note: do not leave a space between the '\$' and your mathematical notation.
+
+Alternatively, you can use LaTeX for more control and when equations are more complicated. LaTeX equations are also automatically numbered if you define a label within the equation environment, which is useful if you have many equations and want to cross-reference them. The equation label needs to be written with '#eq:label' before the end of the equation (see @eq-mean):
+
+$$
+  \bar{X} = \frac{\sum_{i=1}^n X_i}{n}
+$$ {#eq-mean}
+
+Formulas and corresponding explanations should be integrated into the sentence and, thus, end with a comma or period. Here comes an example:
+
+If the random variable $Y$ follows a standard normal distribution, i.e. $Y \sim N(0,1)$, it's density function can be described with
+
+$$
+f_{Y}(y)=\varphi(y) \stackrel{\mathrm{def}}{=} \frac{1}{\sqrt{2 \pi}} \exp \left\{ -\frac{y^2}{2} \right\}, \quad y \in \mathbb{R}.
+$$ {#eq-density-norm}
+
+$\pi$ represents the circle number or Ludolph's number. The function
+
+$$
+  F_{Y}(y)=\Phi(y) \stackrel{\mathrm{def}}{=} \int_{-\infty}^y \varphi(x) \,\mathrm{d}x, \quad y \in \mathbb{R}
+$$ {#eq-dist-func}
+
+
+represents then the distribution function of @eq-density-norm.
+
+The numbering of equations, as in @eq-density-norm, should only be done if they are referred to in the rest of the text. Especially if there are many equations in the thesis, the use of LaTeX seems to make more sense.
+
+
+

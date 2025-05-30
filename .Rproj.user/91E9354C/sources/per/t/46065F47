@@ -1,0 +1,26 @@
+{
+    "id": "46065F47",
+    "path": "~/dev/016-knitr-pdf/app.R",
+    "project_path": "app.R",
+    "type": "r_source",
+    "hash": "2609669013",
+    "contents": "",
+    "dirty": false,
+    "created": 1747863778644.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "45,58",
+        "scrollLine": "29"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1748036253,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1748036253083,
+    "read_only": false,
+    "read_only_alternatives": []
+}

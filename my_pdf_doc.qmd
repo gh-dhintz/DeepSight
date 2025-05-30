@@ -66,11 +66,8 @@ execute:
 fig-align: center
 editor: source
 params:
-  xvarA: null
-  xvarB: null
-  surv_dataset: null
-  surv_group: null
-  sankey_dataset: null
+  plotA_x: null
+  plotB_x: null
 ---
 
 ```{r}
@@ -78,21 +75,33 @@ params:
 #| include: false
 # Load all your packages that you need later
 library(knitr)
-library(survival)
-library(survminer)
-library(networkD3)
-library(DT)
+library(ggplot2)
+#library(survival)
+#library(survminer)
+#library(networkD3)
+#library(DT)
+
+color_bg <- "#FFFFFF"
+color_plot_background <- "#FFFFFF"
+color_fg <- "#0B1C72"
+color_primary <- "#D62727"
+color_success <- "#8A9C40"
+color_warning <- "#FFA500"
+color_plotA_point <- color_primary
+color_plotA_line <- color_warning
+color_plotB_point <- color_success
+color_plotB_line <- color_warning
 ```
 
 ```{r}
 #| label: generate-package-refs
 #| include: false
 # Automatically create a bib database for R packages used above
-knitr::write_bib(
-  x = c(.packages(), 'rmarkdown', 'UHHformats',
-    # Add here now all packages that are loaded above:
-    'knitr', 'survival', 'survminer', 'networkD3', 'DT'), 
-  file = 'bib/packages.bib')
+#knitr::write_bib(
+#  x = c(.packages(), 'rmarkdown', 'UHHformats',
+#    # Add here now all packages that are loaded above:
+#    'knitr', 'survival', 'survminer', 'networkD3', 'DT'), 
+#  file = 'bib/packages.bib')
 ```
 
 
@@ -105,8 +114,8 @@ Here are my regression models:
 ```{r, collapse=TRUE}
 options(digits = 4)
 
-cat("xvarA:", params$xvarA, "\n")
-fml <- as.formula(paste("mpg ~", params$xvarA))
+cat("plotA_x:", params$plotA_x, "\n")
+fml <- as.formula(paste("mpg ~", params$plotA_x))
 fit <- lm(fml, data = mtcars)
 b <- coef(fit)
 summary(fit)
@@ -115,143 +124,64 @@ summary(fit)
 ```{r, collapse=TRUE}
 options(digits = 4)
 
-cat("xvarB:", params$xvarB, "\n")
-fml <- as.formula(paste("mpg ~", params$xvarB))
+cat("plotB_x:", params$plotB_x, "\n")
+fml <- as.formula(paste("mpg ~", params$plotB_x))
 fit <- lm(fml, data = mtcars)
 b <- coef(fit)
 summary(fit)
 ```
 
-The fitting result is $mpg = `r b[1]` + `r b[2]``r params$xvarB`$.
+The fitting result is $mpg = `r b[1]` + `r b[2]``r params$plotB_x`$.
 Below are scatter plots with the regression lines.
 
-```{r plotA, fig.height=4, fig.width=6}
-par(mar = c(4, 4, 2, 1))
-plot(as.formula(paste('mpg ~', params$xvarA)), data = mtcars, 
-     pch = 19, col = 'gray', main = paste("mpg vs", params$xvarA))
-abline(lm(as.formula(paste('mpg ~', params$xvarA)), data = mtcars), col = 'red', lwd = 2)
-```
+```{r}
+#| label: plotA
+#| fig-height: 4
+#| fig-width: 6
 
-```{r plotB, fig.height=4, fig.width=6}
-par(mar = c(4, 4, 2, 1))
-plot(as.formula(paste('mpg ~', params$xvarB)), data = mtcars, 
-     pch = 19, col = 'gray', main = paste("mpg vs", params$xvarB))
-abline(lm(as.formula(paste('mpg ~', params$xvarB)), data = mtcars), col = 'red', lwd = 2)
-```
+color_plotA_point <- "#D62727"
+color_plotA_line <- "#FFA500"
+color_plot_background <- "#FFFFFF"
+color_fg <- "#0B1C72"
 
-## Survival Analysis
-
-```{r setup-survival, message=FALSE, warning=FALSE}
-library(survival)
-library(survminer)
-
-# Default values if params are not provided
-surv_dataset <- if(exists("params") && !is.null(params$surv_dataset)) params$surv_dataset else "lung"
-surv_group <- if(exists("params") && !is.null(params$surv_group)) params$surv_group else "sex"
-
-# Get the appropriate dataset
-if(surv_dataset == "lung") {
-  data <- survival::lung
-  data$sex <- factor(data$sex, levels = c(1, 2), labels = c("Male", "Female"))
-  time_var <- "time"
-  status_var <- "status"
-  title <- "Lung Cancer Dataset"
-} else if(surv_dataset == "colon") {
-  data <- survival::colon
-  time_var <- "time"
-  status_var <- "status"
-  title <- "Colon Cancer Dataset"
-} else if(surv_dataset == "veteran") {
-  data <- survival::veteran
-  time_var <- "time"
-  status_var <- "status"
-  title <- "Veteran's Administration Lung Cancer Dataset"
-}
-```
-
-### Survival Analysis for `r title`
-
-The survival analysis below shows the Kaplan-Meier curves for the `r surv_dataset` dataset, grouped by `r surv_group`.
-
-```{r survival-plot, fig.height=6, fig.width=8}
-# Create the survival formula
-formula <- as.formula(paste("Surv(", time_var, ",", status_var, ") ~", surv_group))
-
-# Fit the survival model
-fit <- surv_fit(formula, data = data)
-
-# Plot the survival curves
-ggsurvplot(fit, 
-           data = data,
-           pval = TRUE,
-           conf.int = TRUE,
-           risk.table = TRUE,
-           risk.table.height = 0.25,
-           ggtheme = theme_bw(),
-           palette = "jco",
-           title = paste("Survival Analysis by", surv_group))
-```
-
-## Sankey Diagram
-
-```{r setup-sankey, message=FALSE, warning=FALSE}
-library(networkD3)
-
-# Default value if param is not provided
-sankey_dataset <- if(exists("params") && !is.null(params$sankey_dataset)) params$sankey_dataset else "Energy Flow"
-
-# Create the appropriate Sankey data
-if(sankey_dataset == "Energy Flow") {
-  nodes <- data.frame(name = c("Production", "Imports", "Exports", 
-                               "Residential", "Commercial", "Industrial", 
-                               "Transportation", "Electricity Generation"))
-  
-  links <- data.frame(
-    source = c(0, 0, 0, 1, 2, 3, 4, 5, 6, 7),
-    target = c(3, 4, 5, 7, 7, 3, 7, 6, 3, 4),
-    value = c(10, 20, 30, 15, 5, 8, 12, 18, 7, 9)
+ggplot(mtcars, aes(x = .data[[params$plotA_x]], y = mpg)) +
+  geom_point(color = color_plotA_point, size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = color_plotA_line) +
+  theme_minimal() +
+  labs(title = "Plot A", x = params$plotA_x, y = "mpg") +
+  theme(
+    plot.background = element_rect(fill = color_plot_background, color = NA),
+    panel.background = element_rect(fill = color_plot_background, color = NA),
+    text = element_text(color = color_fg),
+    axis.text = element_text(color = color_fg),
+    axis.title = element_text(color = color_fg),
+    plot.title = element_text(face = "bold")
   )
-  
-  title <- "Energy Flow Diagram"
-} else {
-  nodes <- data.frame(name = c("North America", "South America", "Europe", 
-                               "Africa", "Asia", "Oceania"))
-  
-  links <- data.frame(
-    source = c(0, 0, 1, 1, 2, 2, 3, 3, 4, 4),
-    target = c(2, 4, 0, 2, 0, 4, 2, 4, 0, 2),
-    value = c(15, 25, 10, 8, 20, 12, 18, 22, 30, 14)
+```
+```{r}
+#| label: plotB
+#| fig-height: 4
+#| fig-width: 6
+
+color_plotB_point <- "#D62727"
+color_plotB_line <- "#FFA500"
+color_plot_background <- "#FFFFFF"
+color_fg <- "#0B1C72"
+
+ggplot(mtcars, aes(x = .data[[params$plotB_x]], y = mpg)) +
+  geom_point(color = color_plotB_point, size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = color_plotB_line) +
+  theme_minimal() +
+  labs(title = "Plot B", x = params$plotB_x, y = "mpg") +
+  theme(
+    plot.background = element_rect(fill = color_plot_background, color = NA),
+    panel.background = element_rect(fill = color_plot_background, color = NA),
+    text = element_text(color = color_fg),
+    axis.text = element_text(color = color_fg),
+    axis.title = element_text(color = color_fg),
+    plot.title = element_text(face = "bold")
   )
-  
-  title <- "Migration Flow Diagram"
-}
 ```
-
-### `r title`
-
-The Sankey diagram below visualizes the flow between different nodes in the `r sankey_dataset` dataset.
-
-```{r sankey-plot, fig.height=6, fig.width=8}
-# Create the Sankey diagram
-sankeyNetwork(Links = links, Nodes = nodes,
-              Source = "source", Target = "target",
-              Value = "value", NodeID = "name",
-              fontSize = 14, nodeWidth = 30,
-              sinksRight = FALSE)
-```
-
-## Data Table
-
-Below is a sample of the data used in the survival analysis:
-
-```{r data-table}
-library(DT)
-# Display a sample of the data
-datatable(head(data, 20), 
-          options = list(pageLength = 10, scrollX = TRUE),
-          caption = paste("Sample of", title))
-```
-
 
 # Introduction
 

@@ -1,0 +1,80 @@
+library(shiny)
+library(quarto)
+
+ui <- fluidPage(
+  titlePanel("Multiple Regression Plots"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("plotA_x", "X Variable for Plot A:", choices = names(mtcars), selected = "hp"),
+      selectInput("plotB_x", "X Variable for Plot B:", choices = names(mtcars), selected = "wt"),
+      selectInput("format", "Report Format:", choices = c("PDF", "HTML", "Word")),
+      downloadButton("downloadReport", "Download Report")
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Plot A", plotOutput("regPlotA")),
+        tabPanel("Plot B", plotOutput("regPlotB"))
+      )
+    )
+  )
+)
+server <- function(input, output) {
+  
+  regFormulaA <- reactive({
+    as.formula(paste("mpg ~", input$plotA_x))
+  })
+  
+  regFormulaB <- reactive({
+    as.formula(paste("mpg ~", input$plotB_x))
+  })
+  
+  output$regPlotA <- renderPlot({
+    par(mar = c(4, 4, 0.1, 0.1))
+    plot(regFormulaA(), data = mtcars, pch = 19, main = "Plot A")
+  })
+  
+  output$regPlotB <- renderPlot({
+    par(mar = c(4, 4, 0.1, 0.1))
+    plot(regFormulaB(), data = mtcars, pch = 19, col = "blue", main = "Plot B")
+  })
+  
+  output$downloadReport <- downloadHandler(
+    filename = function() {
+      paste("my-report", switch(input$format,
+                                PDF = "pdf",
+                                HTML = "html",
+                                Word = "docx"), sep = ".")
+    },
+    content = function(file) {
+      fmt <- switch(input$format,
+                    PDF = list(input = "my_pdf_doc.qmd",  format = "pdf",  ext = "pdf"),
+                    HTML = list(input = "html.qmd", format = "html", ext = "html"),
+                    Word = list(input = "word.qmd", format = "docx", ext = "docx"))
+      
+      out_file <- paste0("report.", fmt$ext)
+      
+      result <- tryCatch({
+        quarto::quarto_render(
+          input = fmt$input,
+          output_file = out_file,
+          output_format = fmt$format,
+          execute_params = list(
+            xvarA = input$plotA_x,
+            xvarB = input$plotB_x
+          ),
+          execute_dir = getwd()
+        )
+      }, error = function(e) {
+        stop("Document generation failed: ", e$message)
+      })
+      
+      if (!file.exists(out_file)) {
+        stop("Document generation failed: output not found.")
+      }
+      
+      file.copy(out_file, file, overwrite = TRUE)
+    }
+  )
+}
+
+shinyApp(ui, server)
