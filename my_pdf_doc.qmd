@@ -68,6 +68,7 @@ editor: source
 params:
   plotA_x: null
   plotB_x: null
+  bookmark_url: null
 ---
 
 ```{r}
@@ -106,6 +107,8 @@ color_plotB_line <- color_warning
 
 
 # Dynamic Report
+
+See [site](`r params$bookmark_url`)
 
 ## Regression Analysis
 

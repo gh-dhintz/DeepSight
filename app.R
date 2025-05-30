@@ -22,12 +22,8 @@ color_secondary <- "#636363"    # Grey for secondary elements
 #### UI ####
 # ────────────────────────────────────────────────────────────────
 ui <- fluidPage(
-  # Set favicon (optional)
-  tags$head(
-    tags$link(rel = "icon", href = "company_logo.png", type = "image/png")
-  ),
-  
-  # Set custom window title and inject logo+title into navbar
+  enableBookmarking("url"),
+  tags$head(tags$link(rel = "icon", href = "company_logo.png", type = "image/png")),
   navbarPage(
     theme = shinytheme("flatly"),
     collapsible = TRUE,
@@ -36,41 +32,33 @@ ui <- fluidPage(
       tags$img(src = "company_logo.png", height = "30px", style = "margin-right:10px;"),
       "Breast Cancer GH Patients"
     ),
-    
-    # Tab content follows...
     tabPanel("User Guide",
       h4("Instructions for Use", class = "text-primary"),
       tableOutput("guideTable")
     ),
-
     tabPanel("Plot A",
       sidebarLayout(
         sidebarPanel(width = 3,
           h4("Inputs for Plot A", class = "text-primary"),
           selectInput("plotA_x", "X Variable:", choices = names(mtcars), selected = "hp")
         ),
-        mainPanel(
-          plotOutput("regPlotA", height = "600px")
-        )
+        mainPanel(plotOutput("regPlotA", height = "600px"))
       )
     ),
-
     tabPanel("Plot B",
       sidebarLayout(
         sidebarPanel(width = 3,
           h4("Inputs for Plot B", class = "text-primary"),
           selectInput("plotB_x", "X Variable:", choices = names(mtcars), selected = "wt")
         ),
-        mainPanel(
-          plotOutput("regPlotB", height = "600px")
-        )
+        mainPanel(plotOutput("regPlotB", height = "600px"))
       )
     ),
-
     tabPanel("Report Export",
       h4("Export Report", class = "text-primary"),
       selectInput("format", "Report Format:", choices = c("PDF", "HTML", "Word")),
-      downloadButton("downloadReport", "Download Report", class = "btn btn-primary")
+      actionButton("download_trigger", "Download Report", class = "btn btn-primary"),
+      downloadLink("download_report_link", "Download Link", style = "display:none;")
     )
   )
 )
@@ -78,18 +66,63 @@ ui <- fluidPage(
 # ────────────────────────────────────────────────────────────────
 #### Server ####
 # ────────────────────────────────────────────────────────────────
-server <- function(input, output) {
+server <- function(input, output, session) {
+  bookmark_url <- reactiveVal(NULL)
+  download_requested <- reactiveVal(FALSE)
 
-  # Reactive formulas
-  regFormulaA <- reactive({
-    as.formula(paste("mpg ~", input$plotA_x))
+  # Trigger bookmarking
+  observeEvent(input$download_trigger, {
+    download_requested(TRUE)
+    session$doBookmark()
   })
 
-  regFormulaB <- reactive({
-    as.formula(paste("mpg ~", input$plotB_x))
+  # When bookmarking completes
+  onBookmarked(function(url) {
+    bookmark_url(url)
+    if (download_requested()) {
+      download_requested(FALSE)  # Reset
+      isolate({
+        fmt <- switch(input$format,
+          PDF = list(input = "my_pdf_doc.qmd", format = "pdf", ext = "pdf"),
+          HTML = list(input = "html.qmd", format = "html", ext = "html"),
+          Word = list(input = "word.qmd", format = "docx", ext = "docx")
+        )
+
+        out_file <- paste0("report.", fmt$ext)
+
+        tryCatch({
+          quarto::quarto_render(
+            input = fmt$input,
+            output_file = out_file,
+            output_format = fmt$format,
+            execute_params = list(
+              plotA_x = input$plotA_x,
+              plotB_x = input$plotB_x,
+              bookmark_url = url
+            ),
+            execute_dir = getwd()
+          )
+
+          showModal(modalDialog(
+            title = "Report Ready",
+            p("The report has been generated."),
+            downloadLink("download_report_link", "Click here to download", class = "btn btn-success"),
+            easyClose = TRUE
+          ))
+
+        }, error = function(e) {
+          showModal(modalDialog(
+            title = "Error",
+            p("Report generation failed."),
+            p(e$message),
+            easyClose = TRUE
+          ))
+        })
+      })
+    }
   })
 
-  ##### Plot A #####
+  # Plot A
   output$regPlotA <- renderPlot({
     ggplot(mtcars, aes_string(x = input$plotA_x, y = "mpg")) +
       geom_point(color = color_primary, size = 3) +
@@ -106,7 +139,7 @@ server <- function(input, output) {
       )
   })
 
-  ##### Plot B #####
+  # Plot B
   output$regPlotB <- renderPlot({
     ggplot(mtcars, aes_string(x = input$plotB_x, y = "mpg")) +
       geom_point(color = color_primary, size = 3) +
@@ -123,7 +156,7 @@ server <- function(input, output) {
       )
   })
 
-  ##### Guide Table #####
+  # Guide table
   output$guideTable <- renderTable({
     data.frame(
       Step = c("Select X for Plot A", "Select X for Plot B", "Review plots", "Choose export format", "Download report"),
@@ -137,44 +170,18 @@ server <- function(input, output) {
     )
   })
 
-  ##### Report Download #####
-  output$downloadReport <- downloadHandler(
+  # Serve the rendered file
+  output$download_report_link <- downloadHandler(
     filename = function() {
-      paste("my-report", switch(input$format,
-        PDF = "pdf",
-        HTML = "html",
-        Word = "docx"), sep = ".")
+      paste0("report.", switch(input$format,
+        PDF = "pdf", HTML = "html", Word = "docx"))
     },
     content = function(file) {
-      fmt <- switch(input$format,
-        PDF = list(input = "my_pdf_doc.qmd", format = "pdf", ext = "pdf"),
-        HTML = list(input = "html.qmd", format = "html", ext = "html"),
-        Word = list(input = "word.qmd", format = "docx", ext = "docx"))
-
-      out_file <- paste0("report.", fmt$ext)
-
-      result <- tryCatch({
-        quarto::quarto_render(
-          input = fmt$input,
-          output_file = out_file,
-          output_format = fmt$format,
-          execute_params = list(
-            plotA_x = input$plotA_x,
-            plotB_x = input$plotB_x
-          ),
-          execute_dir = getwd()
-        )
-      }, error = function(e) {
-        stop("Document generation failed: ", e$message)
-      })
-
-      if (!file.exists(out_file)) {
-        stop("Document generation failed: output not found.")
-      }
-
-      file.copy(out_file, file, overwrite = TRUE)
+      file.copy(paste0("report.", switch(input$format,
+        PDF = "pdf", HTML = "html", Word = "docx")), file)
     }
   )
 }
 #### shinyApp(ui, server) ####
+enableBookmarking(store = "url")
 shinyApp(ui, server)
