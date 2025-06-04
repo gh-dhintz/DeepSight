@@ -38,7 +38,8 @@ ui <- fluidPage(
   br(),
   h4("Tips", class = "text-primary"),
   tags$ul(
-    tags$li("Tip 1: For Plots to be Generated, you have to have visted its respected tab")
+    tags$li("Tip 1: For Plots to be Generated, you have to have visted its respected tab"),
+    tags$li("Tip 2: Plots will be arranged in the report as they appear, top to bottom in the dashboard")
   )
     ),
     ##### Plot A #####
