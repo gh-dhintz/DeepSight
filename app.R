@@ -26,7 +26,7 @@ ui <- fluidPage(
     collapsible = TRUE,
     id = "nav",
     title = div(
-      tags$img(src = "company_logo.png", height = "30px", style = "margin-right:10px;"),
+      #tags$img(src = "company_logo.png", height = "30px", style = "margin-right:10px;"),
       "Breast Cancer GH Patients"
     ),
     ##### User Guide #####
