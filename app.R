@@ -473,15 +473,40 @@ server <- function(input, output, session) {
 
   # Load Report 1 parameters into current session
   observeEvent(input$load_report_1, {
-    params <- report1_params()
-    if (length(params) > 0) {
-      # Update current inputs with Report 1 parameters
-      if (!is.na(params$plotA_n)) updateNumericInput(session, "plotA_n", value = params$plotA_n)
-      if (!is.na(params$plotB_n)) updateNumericInput(session, "plotB_n", value = params$plotB_n)
-      
-      showNotification("Report 1 parameters loaded successfully!", type = "message")
-    }
-  })
+  params <- report1_params()
+  if (length(params) > 0) {
+    # Update current inputs with Report 1 parameters
+    if (!is.na(params$plotA_n)) updateNumericInput(session, "plotA_n", value = params$plotA_n)
+    if (!is.na(params$plotB_n)) updateNumericInput(session, "plotB_n", value = params$plotB_n)
+    
+    # Use invalidateLater to delay the select input updates
+    invalidateLater(500, session)
+    
+    # Schedule the select input updates
+    observe({
+      if (!is.na(params$plotA_x_1) && !is.null(input$plotA_x_1)) {
+        updateSelectInput(session, "plotA_x_1", selected = params$plotA_x_1)
+      }
+      if (!is.na(params$plotA_x_2) && !is.null(input$plotA_x_2)) {
+        updateSelectInput(session, "plotA_x_2", selected = params$plotA_x_2)
+      }
+      if (!is.na(params$plotA_x_3) && !is.null(input$plotA_x_3)) {
+        updateSelectInput(session, "plotA_x_3", selected = params$plotA_x_3)
+      }
+      if (!is.na(params$plotB_x_1) && !is.null(input$plotB_x_1)) {
+        updateSelectInput(session, "plotB_x_1", selected = params$plotB_x_1)
+      }
+      if (!is.na(params$plotB_x_2) && !is.null(input$plotB_x_2)) {
+        updateSelectInput(session, "plotB_x_2", selected = params$plotB_x_2)
+      }
+      if (!is.na(params$plotB_x_3) && !is.null(input$plotB_x_3)) {
+        updateSelectInput(session, "plotB_x_3", selected = params$plotB_x_3)
+      }
+    })
+    
+    showNotification("Report 1 parameters loaded successfully!", type = "message")
+  }
+})
 
   # Load Report 2 parameters into current session
   observeEvent(input$load_report_2, {
@@ -490,6 +515,31 @@ server <- function(input, output, session) {
       # Update current inputs with Report 2 parameters
       if (!is.na(params$plotA_n)) updateNumericInput(session, "plotA_n", value = params$plotA_n)
       if (!is.na(params$plotB_n)) updateNumericInput(session, "plotB_n", value = params$plotB_n)
+      
+      # Use invalidateLater to delay the select input updates
+      invalidateLater(500, session)
+      
+      # Schedule the select input updates
+      observe({
+        if (!is.na(params$plotA_x_1) && !is.null(input$plotA_x_1)) {
+          updateSelectInput(session, "plotA_x_1", selected = params$plotA_x_1)
+        }
+        if (!is.na(params$plotA_x_2) && !is.null(input$plotA_x_2)) {
+          updateSelectInput(session, "plotA_x_2", selected = params$plotA_x_2)
+        }
+        if (!is.na(params$plotA_x_3) && !is.null(input$plotA_x_3)) {
+          updateSelectInput(session, "plotA_x_3", selected = params$plotA_x_3)
+        }
+        if (!is.na(params$plotB_x_1) && !is.null(input$plotB_x_1)) {
+          updateSelectInput(session, "plotB_x_1", selected = params$plotB_x_1)
+        }
+        if (!is.na(params$plotB_x_2) && !is.null(input$plotB_x_2)) {
+          updateSelectInput(session, "plotB_x_2", selected = params$plotB_x_2)
+        }
+        if (!is.na(params$plotB_x_3) && !is.null(input$plotB_x_3)) {
+          updateSelectInput(session, "plotB_x_3", selected = params$plotB_x_3)
+        }
+      })
       
       showNotification("Report 2 parameters loaded successfully!", type = "message")
     }
