@@ -69,9 +69,15 @@ params:
   plotA_x_1: null
   plotA_x_2: null
   plotA_x_3: null
+  plotA_notes_1: null
+  plotA_notes_2: null
+  plotA_notes_3: null
   plotB_x_1: null
   plotB_x_2: null
   plotB_x_3: null
+  plotB_notes_1: null
+  plotB_notes_2: null
+  plotB_notes_3: null
   bookmark_url: null
 ---
 
@@ -175,17 +181,10 @@ if (length(plotB_params) > 0) {
 ## Scatter Plots with Regression Lines
 
 ### Plot A Visualizations
-
-
-```{r, collapse=TRUE, results='asis'}
+```{r, results='asis'}
 #| label: plotA-loop
 #| fig-height: 4
 #| fig-width: 6
-
-color_plotA_point <- "#D62727"
-color_plotA_line <- "#FFA500"
-color_plot_background <- "#FFFFFF"
-color_fg <- "#0B1C72"
 
 # Get all Plot A parameters that are not NULL
 plotA_params <- params[grepl("^plotA_x_", names(params))]
@@ -194,6 +193,8 @@ plotA_params <- plotA_params[!sapply(plotA_params, is.null)]
 if (length(plotA_params) > 0) {
   for (i in 1:length(plotA_params)) {
     x_var <- plotA_params[[i]]
+    notes_param <- paste0("plotA_notes_", i)
+    notes <- if (!is.null(params[[notes_param]]) && params[[notes_param]] != "") params[[notes_param]] else NULL
     
     p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
       geom_point(color = color_plotA_point, size = 3) +
@@ -210,6 +211,12 @@ if (length(plotA_params) > 0) {
       )
     
     print(p)
+    
+    # Add notes if they exist
+    if (!is.null(notes)) {
+      cat("\n**Notes:**", notes, "\n\n")
+    }
+    
     cat("\n\n")
   }
 } else {

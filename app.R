@@ -64,14 +64,14 @@ ui <- fluidPage(
         mainPanel(uiOutput("plotB_outputs"))
       )
     ),
-    ##### Report Export #####
+##### Report Export #####
 tabPanel("Report Export",
 h4("Export Report", class = "text-primary"),
 
 # Report format selection
 selectInput("format", "Report Format:", choices = c("PDF", "HTML", "Word")),
 
-# Preview section
+###### Preview Section ######
 br(),
 h4("Report Preview", class = "text-primary"),
 p("The following inputs will be included in your report:"),
@@ -152,7 +152,7 @@ server <- function(input, output, session) {
         )
 
         out_file <- paste0("report.", fmt$ext)
-
+        ##### Quarto::render #####
         tryCatch({
           withProgress(message = "Rendering report", value = 0.3, {
             Sys.sleep(0.5)
@@ -164,9 +164,15 @@ server <- function(input, output, session) {
                 plotA_x_1 = input$plotA_x_1,
                 plotA_x_2 = input$plotA_x_2,
                 plotA_x_3 = input$plotA_x_3,
+                plotA_notes_1 = input$plotA_notes_1,
+                plotA_notes_2 = input$plotA_notes_2,
+                plotA_notes_3 = input$plotA_notes_3,
                 plotB_x_1 = input$plotB_x_1,
                 plotB_x_2 = input$plotB_x_2,
                 plotB_x_3 = input$plotB_x_3,
+                plotB_notes_1 = input$plotB_notes_1,
+                plotB_notes_2 = input$plotB_notes_2,
+                plotB_notes_3 = input$plotB_notes_3,
                 bookmark_url = url
               ),
               execute_dir = getwd()
@@ -194,13 +200,19 @@ server <- function(input, output, session) {
   })
 
   # ─────────────────────────────────────────────────────
-  # Dynamic UI for Plot A
+  #### Dynamic UI for Plot A ####
   # ─────────────────────────────────────────────────────
   output$plotA_inputs <- renderUI({
-    lapply(1:input$plotA_n, function(i) {
-      selectInput(paste0("plotA_x_", i), paste("X Variable for Plot A", i), choices = names(mtcars))
-    })
+  lapply(1:input$plotA_n, function(i) {
+    div(
+      selectInput(paste0("plotA_x_", i), paste("X Variable for Plot A", i), choices = names(mtcars)),
+      br(),
+      textAreaInput(paste0("plotA_notes_", i), paste("Notes for Plot A", i), 
+                   placeholder = "Add your comments about this plot here...", 
+                   height = "80px", width = "100%")
+    )
   })
+})
 
   output$plotA_outputs <- renderUI({
     lapply(1:input$plotA_n, function(i) {
@@ -231,11 +243,17 @@ server <- function(input, output, session) {
   }
 
   # ─────────────────────────────────────────────────────
-  # Dynamic UI for Plot B
+  #### Dynamic UI for Plot B ####
   # ─────────────────────────────────────────────────────
   output$plotB_inputs <- renderUI({
     lapply(1:input$plotB_n, function(i) {
-      selectInput(paste0("plotB_x_", i), paste("X Variable for Plot B", i), choices = names(mtcars))
+      div(
+        selectInput(paste0("plotB_x_", i), paste("X Variable for Plot B", i), choices = names(mtcars)),
+        br(),
+        textAreaInput(paste0("plotB_notes_", i), paste("Notes for Plot B", i), 
+                     placeholder = "Add your comments about this plot here...", 
+                     height = "80px", width = "100%")
+      )
     })
   })
 
@@ -268,7 +286,7 @@ server <- function(input, output, session) {
   }
 
   # ─────────────────────────────────────────────────────
-  # User Guide Table
+  #### User Guide Table ####
   # ─────────────────────────────────────────────────────
   output$guideTable <- renderTable({
     data.frame(
@@ -289,9 +307,9 @@ server <- function(input, output, session) {
     )
   })
 
-  # ─────────────────────────────────────────────────────
-  # Input Preview Table for Report Export (More Detailed Preview)
-  # ─────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────
+  #### Input Preview Table for Report Export (More Detailed Preview) ####
+  # ─────────────────────────────────────────────────────────────────────
   output$inputPreviewTable <- renderTable({
     # Create summary data - only show if inputs actually exist
     summary_data <- data.frame(
@@ -352,12 +370,22 @@ server <- function(input, output, session) {
     if (plotA_visited && !is.null(input$plotA_n) && input$plotA_n > 0) {
       for (i in 1:input$plotA_n) {
         x_var <- input[[paste0("plotA_x_", i)]]
+        notes_var <- input[[paste0("plotA_notes_", i)]]
         if (!is.null(x_var)) {
           plot_details <- rbind(plot_details, data.frame(
             Setting = paste("Plot A", i, "- X Variable"),
             Value = x_var,
             stringsAsFactors = FALSE
           ))
+          
+          # Add notes if they exist
+          if (!is.null(notes_var) && notes_var != "") {
+            plot_details <- rbind(plot_details, data.frame(
+              Setting = paste("Plot A", i, "- Notes"),
+              Value = if(nchar(notes_var) > 50) paste0(substr(notes_var, 1, 50), "...") else notes_var,
+              stringsAsFactors = FALSE
+            ))
+          }
         }
       }
     }
@@ -366,12 +394,22 @@ server <- function(input, output, session) {
     if (plotB_visited && !is.null(input$plotB_n) && input$plotB_n > 0) {
       for (i in 1:input$plotB_n) {
         x_var <- input[[paste0("plotB_x_", i)]]
+        notes_var <- input[[paste0("plotB_notes_", i)]]
         if (!is.null(x_var)) {
           plot_details <- rbind(plot_details, data.frame(
             Setting = paste("Plot B", i, "- X Variable"),
             Value = x_var,
             stringsAsFactors = FALSE
           ))
+          
+          # Add notes if they exist
+          if (!is.null(notes_var) && notes_var != "") {
+            plot_details <- rbind(plot_details, data.frame(
+              Setting = paste("Plot B", i, "- Notes"),
+              Value = if(nchar(notes_var) > 50) paste0(substr(notes_var, 1, 50), "...") else notes_var,
+              stringsAsFactors = FALSE
+            ))
+          }
         }
       }
     }
@@ -392,7 +430,7 @@ server <- function(input, output, session) {
   }, striped = TRUE, hover = TRUE)
 
   # ─────────────────────────────────────────────────────
-  # Compare Reports Functionality
+  #### Compare Reports Functionality ####
   # ─────────────────────────────────────────────────────
 
   # Function to parse URL parameters
@@ -435,7 +473,9 @@ server <- function(input, output, session) {
   extractReportParams <- function(param_list) {
     relevant_params <- c("plotA_n", "plotB_n", 
                         "plotA_x_1", "plotA_x_2", "plotA_x_3",
-                        "plotB_x_1", "plotB_x_2", "plotB_x_3")
+                        "plotA_notes_1", "plotA_notes_2", "plotA_notes_3",
+                        "plotB_x_1", "plotB_x_2", "plotB_x_3",
+                        "plotB_notes_1", "plotB_notes_2", "plotB_notes_3")
     
     result <- list()
     for (param in relevant_params) {
@@ -471,19 +511,20 @@ server <- function(input, output, session) {
     updateTextAreaInput(session, "bookmark_url_2", value = "")
   })
 
-  # Load Report 1 parameters into current session
-  observeEvent(input$load_report_1, {
+  ##### Load Report 1 parameters into current session #####
+observeEvent(input$load_report_1, {
   params <- report1_params()
   if (length(params) > 0) {
     # Update current inputs with Report 1 parameters
     if (!is.na(params$plotA_n)) updateNumericInput(session, "plotA_n", value = params$plotA_n)
     if (!is.na(params$plotB_n)) updateNumericInput(session, "plotB_n", value = params$plotB_n)
     
-    # Use invalidateLater to delay the select input updates
+    # Use invalidateLater to delay the input updates
     invalidateLater(500, session)
     
-    # Schedule the select input updates
+    # Schedule the input updates
     observe({
+      # Update select inputs
       if (!is.na(params$plotA_x_1) && !is.null(input$plotA_x_1)) {
         updateSelectInput(session, "plotA_x_1", selected = params$plotA_x_1)
       }
@@ -502,50 +543,91 @@ server <- function(input, output, session) {
       if (!is.na(params$plotB_x_3) && !is.null(input$plotB_x_3)) {
         updateSelectInput(session, "plotB_x_3", selected = params$plotB_x_3)
       }
+      
+      # Update notes text areas
+      if (!is.na(params$plotA_notes_1) && !is.null(input$plotA_notes_1)) {
+        updateTextAreaInput(session, "plotA_notes_1", value = params$plotA_notes_1)
+      }
+      if (!is.na(params$plotA_notes_2) && !is.null(input$plotA_notes_2)) {
+        updateTextAreaInput(session, "plotA_notes_2", value = params$plotA_notes_2)
+      }
+      if (!is.na(params$plotA_notes_3) && !is.null(input$plotA_notes_3)) {
+        updateTextAreaInput(session, "plotA_notes_3", value = params$plotA_notes_3)
+      }
+      if (!is.na(params$plotB_notes_1) && !is.null(input$plotB_notes_1)) {
+        updateTextAreaInput(session, "plotB_notes_1", value = params$plotB_notes_1)
+      }
+      if (!is.na(params$plotB_notes_2) && !is.null(input$plotB_notes_2)) {
+        updateTextAreaInput(session, "plotB_notes_2", value = params$plotB_notes_2)
+      }
+      if (!is.na(params$plotB_notes_3) && !is.null(input$plotB_notes_3)) {
+        updateTextAreaInput(session, "plotB_notes_3", value = params$plotB_notes_3)
+      }
     })
     
     showNotification("Report 1 parameters loaded successfully!", type = "message")
   }
 })
 
-  # Load Report 2 parameters into current session
-  observeEvent(input$load_report_2, {
-    params <- report2_params()
-    if (length(params) > 0) {
-      # Update current inputs with Report 2 parameters
-      if (!is.na(params$plotA_n)) updateNumericInput(session, "plotA_n", value = params$plotA_n)
-      if (!is.na(params$plotB_n)) updateNumericInput(session, "plotB_n", value = params$plotB_n)
+  ##### Load Report 2 parameters into current session #####
+observeEvent(input$load_report_2, {
+  params <- report2_params()
+  if (length(params) > 0) {
+    # Update current inputs with Report 2 parameters
+    if (!is.na(params$plotA_n)) updateNumericInput(session, "plotA_n", value = params$plotA_n)
+    if (!is.na(params$plotB_n)) updateNumericInput(session, "plotB_n", value = params$plotB_n)
+    
+    # Use invalidateLater to delay the input updates
+    invalidateLater(500, session)
+    
+    # Schedule the input updates
+    observe({
+      # Update select inputs
+      if (!is.na(params$plotA_x_1) && !is.null(input$plotA_x_1)) {
+        updateSelectInput(session, "plotA_x_1", selected = params$plotA_x_1)
+      }
+      if (!is.na(params$plotA_x_2) && !is.null(input$plotA_x_2)) {
+        updateSelectInput(session, "plotA_x_2", selected = params$plotA_x_2)
+      }
+      if (!is.na(params$plotA_x_3) && !is.null(input$plotA_x_3)) {
+        updateSelectInput(session, "plotA_x_3", selected = params$plotA_x_3)
+      }
+      if (!is.na(params$plotB_x_1) && !is.null(input$plotB_x_1)) {
+        updateSelectInput(session, "plotB_x_1", selected = params$plotB_x_1)
+      }
+      if (!is.na(params$plotB_x_2) && !is.null(input$plotB_x_2)) {
+        updateSelectInput(session, "plotB_x_2", selected = params$plotB_x_2)
+      }
+      if (!is.na(params$plotB_x_3) && !is.null(input$plotB_x_3)) {
+        updateSelectInput(session, "plotB_x_3", selected = params$plotB_x_3)
+      }
       
-      # Use invalidateLater to delay the select input updates
-      invalidateLater(500, session)
-      
-      # Schedule the select input updates
-      observe({
-        if (!is.na(params$plotA_x_1) && !is.null(input$plotA_x_1)) {
-          updateSelectInput(session, "plotA_x_1", selected = params$plotA_x_1)
-        }
-        if (!is.na(params$plotA_x_2) && !is.null(input$plotA_x_2)) {
-          updateSelectInput(session, "plotA_x_2", selected = params$plotA_x_2)
-        }
-        if (!is.na(params$plotA_x_3) && !is.null(input$plotA_x_3)) {
-          updateSelectInput(session, "plotA_x_3", selected = params$plotA_x_3)
-        }
-        if (!is.na(params$plotB_x_1) && !is.null(input$plotB_x_1)) {
-          updateSelectInput(session, "plotB_x_1", selected = params$plotB_x_1)
-        }
-        if (!is.na(params$plotB_x_2) && !is.null(input$plotB_x_2)) {
-          updateSelectInput(session, "plotB_x_2", selected = params$plotB_x_2)
-        }
-        if (!is.na(params$plotB_x_3) && !is.null(input$plotB_x_3)) {
-          updateSelectInput(session, "plotB_x_3", selected = params$plotB_x_3)
-        }
-      })
-      
-      showNotification("Report 2 parameters loaded successfully!", type = "message")
-    }
-  })
+      # Update notes text areas
+      if (!is.na(params$plotA_notes_1) && !is.null(input$plotA_notes_1)) {
+        updateTextAreaInput(session, "plotA_notes_1", value = params$plotA_notes_1)
+      }
+      if (!is.na(params$plotA_notes_2) && !is.null(input$plotA_notes_2)) {
+        updateTextAreaInput(session, "plotA_notes_2", value = params$plotA_notes_2)
+      }
+      if (!is.na(params$plotA_notes_3) && !is.null(input$plotA_notes_3)) {
+        updateTextAreaInput(session, "plotA_notes_3", value = params$plotA_notes_3)
+      }
+      if (!is.na(params$plotB_notes_1) && !is.null(input$plotB_notes_1)) {
+        updateTextAreaInput(session, "plotB_notes_1", value = params$plotB_notes_1)
+      }
+      if (!is.na(params$plotB_notes_2) && !is.null(input$plotB_notes_2)) {
+        updateTextAreaInput(session, "plotB_notes_2", value = params$plotB_notes_2)
+      }
+      if (!is.na(params$plotB_notes_3) && !is.null(input$plotB_notes_3)) {
+        updateTextAreaInput(session, "plotB_notes_3", value = params$plotB_notes_3)
+      }
+    })
+    
+    showNotification("Report 2 parameters loaded successfully!", type = "message")
+  }
+})
 
-  # Generate comparison table
+  ##### Generate comparison table #####
   output$comparisonTable <- renderTable({
     params1 <- report1_params()
     params2 <- report2_params()
@@ -592,11 +674,17 @@ server <- function(input, output, session) {
         "plotA_n" = "Plot A - Number of Plots",
         "plotB_n" = "Plot B - Number of Plots",
         "plotA_x_1" = "Plot A 1 - X Variable",
-        "plotA_x_2" = "Plot A 2 - X Variable",
+        "plotA_x_2" = "Plot A 2 - X Variable", 
         "plotA_x_3" = "Plot A 3 - X Variable",
+        "plotA_notes_1" = "Plot A 1 - Notes",
+        "plotA_notes_2" = "Plot A 2 - Notes",
+        "plotA_notes_3" = "Plot A 3 - Notes",
         "plotB_x_1" = "Plot B 1 - X Variable",
         "plotB_x_2" = "Plot B 2 - X Variable",
         "plotB_x_3" = "Plot B 3 - X Variable",
+        "plotB_notes_1" = "Plot B 1 - Notes",
+        "plotB_notes_2" = "Plot B 2 - Notes",
+        "plotB_notes_3" = "Plot B 3 - Notes",
         param
       )
       
@@ -614,7 +702,7 @@ server <- function(input, output, session) {
   }, striped = TRUE, hover = TRUE)
 
   # ─────────────────────────────────────────────────────
-  # Serve the rendered file
+  ##### Serve the rendered file #####
   # ─────────────────────────────────────────────────────
   output$download_report_link <- downloadHandler(
     filename = function() {
