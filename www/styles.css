@@ -1,0 +1,140 @@
+input[type="number"] {
+  max-width: 80%;
+}
+
+div.outer {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Customize fonts */
+body, label, input, button, select { 
+  font-family: 'Helvetica Neue', Helvetica;
+  font-weight: 200;
+}
+h1, h2, h3, h4 { font-weight: 400; }
+
+#controls {
+  /* Appearance */
+  background-color: white;
+  padding: 0 10px 10px 10px;
+  cursor: move;
+  /* Fade out while not hovering */
+  opacity: 0.55;
+  zoom: 0.9;
+  transition: opacity 500ms 1s;
+}
+
+#controls:hover {
+  /* Fade in while hovering */
+  opacity: 0.75;
+  transition-delay: 0;
+}
+
+#logo {
+  /* Appearance */
+  background-color: transparent;
+  cursor: move;
+  /* Fade out while not hovering */
+  opacity: 0.25;
+  zoom: 0.9;
+  transition: opacity 500ms 1s;
+}
+
+#logo:hover {
+  /* Fade in while hovering */
+  opacity: 0.95;
+  transition-delay: 0;
+}
+
+/* Enhanced sub-tab styling */
+#plots_subtabs.nav.nav-tabs {
+  border-bottom: 3px solid #cc4c02 !important;
+  margin-bottom: 0 !important;
+  background-color: #f8f9fa !important;
+  padding: 5px !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+
+/* Style individual tab links */
+#plots_subtabs > li > a {
+  background-color: #f8f9fa !important;
+  color: #495057 !important;
+  border: 2px solid #dee2e6 !important;
+  border-radius: 12px 12px 0 0 !important;
+  font-weight: 600 !important;
+  padding: 15px 25px !important;
+  margin-right: 10px !important;
+  margin-bottom: -2px !important;
+  font-size: 16px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+  position: relative !important;
+}
+
+/* Hover state */
+#plots_subtabs > li > a:hover {
+  background-color: #fff5f0 !important;
+  border-color: #cc4c02 !important;
+  color: #cc4c02 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 8px rgba(204, 76, 2, 0.2) !important;
+  text-decoration: none !important;
+}
+
+/* Active state */
+#plots_subtabs > li.active > a,
+#plots_subtabs > li.active > a:hover,
+#plots_subtabs > li.active > a:focus {
+  background-color: #cc4c02 !important;
+  color: white !important;
+  border-color: #cc4c02 !important;
+  font-weight: 700 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(204, 76, 2, 0.3) !important;
+  text-decoration: none !important;
+}
+
+/* Style the tab content area */
+.tab-content .tab-pane {
+  border: 2px solid #dee2e6 !important;
+  border-top: none !important;
+  border-radius: 0 0 12px 12px !important;
+  background-color: #ffffff !important;
+  padding: 20px !important;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+/* Tab bar Styling */
+.navbar-brand {
+    font-size: 14px !important;  /* Smaller brand */
+}
+.navbar-nav > li > a {
+    font-size: 14px !important;  /* Default nav size */
+}
+
+/* Option 4: Make brand larger, keep nav default */
+.navbar-brand {
+    font-size: 22px !important;  /* Larger brand */
+    font-weight: bold !important; /* Make it stand out */
+}
+.navbar-nav > li > a {
+    font-size: 16px !important;  /* Smaller nav links */
+}
+
+/*Plot A anotations*/
+.shiny-html-output input[id*="plot_A_SubCaption_alternate_"] {
+    font-size: 11px !important;
+}
+
+.shiny-html-output input[id*="plot_A_SubCaption_alternate_"]::placeholder {
+    font-size: 11px !important;
+    color: #999999 !important;
+}

@@ -1,0 +1,50 @@
+---
+title: "Test Dynamic Subcaptions"
+format: pdf
+params:
+  plotA_x_1: "wt"
+  plotA_x_2: "hp"
+  plotA_x_3: null
+---
+
+```{r}
+#| label: setup-subcap
+#| include: false
+library(ggplot2)
+subcaps <- c(paste(params$plotA_x_1, "vs MPG"), paste(params$plotA_x_2, "vs MPG"))
+```
+
+```{r}
+#| label: fig-plotA
+#| fig-cap: "Plot A: Test Visualizations"
+#| fig-subcap: !expr subcaps
+#| layout-ncol: 2
+#| fig-height: 4
+#| fig-width: 5
+
+# Plot 1
+ggplot(mtcars, aes(x = .data[[params$plotA_x_1]], y = mpg)) + geom_point()
+
+# Plot 2  
+ggplot(mtcars, aes(x = .data[[params$plotA_x_2]], y = mpg)) + geom_point()
+```
+
+See @fig-plotA-1 and @fig-plotA-2.
+
+
+
+```{r}
+#### Helper Functions ####
+upk <- function(df) {df %>% summarise(count = n_distinct(upk_key))}
+
+tsv <- function(df, filename = "table.tsv") {
+  temp_file <- file.path(tempdir(), filename)
+  df %>% 
+    t() %>% 
+    write.table(temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
+  rstudioapi::navigateToFile(temp_file)
+  return(df)
+}
+
+
+```

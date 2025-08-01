@@ -1,0 +1,9 @@
+# Details from the child document One
+
+Hi, there. I'm a child with a plot and as many details as necessary.
+
+```{r fig-child-one, fig.cap="Trees dataset plot"}
+plot(trees)
+```
+
+See @fig-child-one for more information.

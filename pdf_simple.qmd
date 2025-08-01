@@ -181,88 +181,229 @@ if (length(plotB_params) > 0) {
 ## Scatter Plots with Regression Lines
 
 ### Plot A Visualizations
-```{r, results='asis'}
-#| label: plotA-loop
+
+```{r}
+#| label: fig-plotA-1
 #| fig-height: 4
 #| fig-width: 6
 
-# Get all Plot A parameters that are not NULL
-plotA_params <- params[grepl("^plotA_x_", names(params))]
-plotA_params <- plotA_params[!sapply(plotA_params, is.null)]
 
-if (length(plotA_params) > 0) {
-  for (i in 1:length(plotA_params)) {
-    x_var <- plotA_params[[i]]
-    notes_param <- paste0("plotA_notes_", i)
-    notes <- if (!is.null(params[[notes_param]]) && params[[notes_param]] != "") params[[notes_param]] else NULL
-    
-    p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
-      geom_point(color = color_plotA_point, size = 3) +
-      geom_smooth(method = "lm", se = FALSE, color = color_plotA_line) +
-      theme_minimal() +
-      labs(title = paste("Plot A", i), x = x_var, y = "mpg") +
-      theme(
-        plot.background = element_rect(fill = color_plot_background, color = NA),
-        panel.background = element_rect(fill = color_plot_background, color = NA),
-        text = element_text(color = color_fg),
-        axis.text = element_text(color = color_fg),
-        axis.title = element_text(color = color_fg),
-        plot.title = element_text(face = "bold")
-      )
-    
-    print(p)
-    
-    # Add notes if they exist
-    if (!is.null(notes)) {
-      cat("\n**Notes:**", notes, "\n\n")
-    }
-    
-    cat("\n\n")
-  }
-} else {
-  cat("No Plot A visualizations to display.\n\n")
+if (!is.null(params$plotA_x_1)) {
+  x_var <- params$plotA_x_1
+  
+  p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
+    geom_point(color = color_plotA_point, size = 3) +
+    geom_smooth(method = "lm", se = FALSE, color = color_plotA_line) +
+    theme_minimal() +
+    labs(title = "Plot A 1", x = x_var, y = "mpg") +
+    theme(
+      plot.background = element_rect(fill = color_plot_background, color = NA),
+      panel.background = element_rect(fill = color_plot_background, color = NA),
+      text = element_text(color = color_fg),
+      axis.text = element_text(color = color_fg),
+      axis.title = element_text(color = color_fg),
+      plot.title = element_text(face = "bold")
+    )
+  
+  print(p)
+}
+```
+
+
+```{r}
+#| label: notes-plotA-1
+#| results: asis
+#| eval: !is.null(params$plotA_notes_1)
+
+if (!is.null(params$plotA_notes_1) && params$plotA_notes_1 != "") {
+  cat("\n**Notes:**", params$plotA_notes_1, "\n\n")
+}
+```
+
+
+```{r}
+#| label: fig-plotA-2
+#| fig-height: 4
+#| fig-width: 6
+
+
+if (!is.null(params$plotA_x_2)) {
+  x_var <- params$plotA_x_2
+  
+  p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
+    geom_point(color = color_plotA_point, size = 3) +
+    geom_smooth(method = "lm", se = FALSE, color = color_plotA_line) +
+    theme_minimal() +
+    labs(title = "Plot A 2", x = x_var, y = "mpg") +
+    theme(
+      plot.background = element_rect(fill = color_plot_background, color = NA),
+      panel.background = element_rect(fill = color_plot_background, color = NA),
+      text = element_text(color = color_fg),
+      axis.text = element_text(color = color_fg),
+      axis.title = element_text(color = color_fg),
+      plot.title = element_text(face = "bold")
+    )
+  
+  print(p)
+}
+```
+
+
+```{r}
+#| label: notes-plotA-2
+#| results: asis
+
+if (!is.null(params$plotA_notes_2) && params$plotA_notes_2 != "") {
+  cat("\n**Notes:**", params$plotA_notes_2, "\n\n")
+}
+```
+
+
+```{r}
+#| label: fig-plotA-3
+#| fig-height: 4
+#| fig-width: 6
+
+if (!is.null(params$plotA_x_3)) {
+  x_var <- params$plotA_x_3
+  
+  p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
+    geom_point(color = color_plotA_point, size = 3) +
+    geom_smooth(method = "lm", se = FALSE, color = color_plotA_line) +
+    theme_minimal() +
+    labs(title = "Plot A 3", x = x_var, y = "mpg") +
+    theme(
+      plot.background = element_rect(fill = color_plot_background, color = NA),
+      panel.background = element_rect(fill = color_plot_background, color = NA),
+      text = element_text(color = color_fg),
+      axis.text = element_text(color = color_fg),
+      axis.title = element_text(color = color_fg),
+      plot.title = element_text(face = "bold")
+    )
+  
+  print(p)
+}
+```
+
+
+```{r}
+#| label: notes-plotA-3
+#| results: asis
+
+if (!is.null(params$plotA_notes_3) && params$plotA_notes_3 != "") {
+  cat("\n**Notes:**", params$plotA_notes_3, "\n\n")
 }
 ```
 
 ### Plot B Visualizations
 
 
-```{r, collapse=TRUE, results='asis'}
-#| label: plotB-loop
+```{r}
+#| label: fig-plotB-1
 #| fig-height: 4
 #| fig-width: 6
 
-color_plotB_point <- "#8A9C40"
-color_plotB_line <- "#FFA500"
-color_plot_background <- "#FFFFFF"
-color_fg <- "#0B1C72"
+if (!is.null(params$plotB_x_1)) {
+  x_var <- params$plotB_x_1
+  
+  p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
+    geom_point(color = color_plotB_point, size = 3) +
+    geom_smooth(method = "lm", se = FALSE, color = color_plotB_line) +
+    theme_minimal() +
+    labs(title = "Plot B 1", x = x_var, y = "mpg") +
+    theme(
+      plot.background = element_rect(fill = color_plot_background, color = NA),
+      panel.background = element_rect(fill = color_plot_background, color = NA),
+      text = element_text(color = color_fg),
+      axis.text = element_text(color = color_fg),
+      axis.title = element_text(color = color_fg),
+      plot.title = element_text(face = "bold")
+    )
+  
+  print(p)
+}
+```
 
-# Get all Plot B parameters that are not NULL
-plotB_params <- params[grepl("^plotB_x_", names(params))]
-plotB_params <- plotB_params[!sapply(plotB_params, is.null)]
 
-if (length(plotB_params) > 0) {
-  for (i in 1:length(plotB_params)) {
-    x_var <- plotB_params[[i]]
-    
-    p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
-      geom_point(color = color_plotB_point, size = 3) +
-      geom_smooth(method = "lm", se = FALSE, color = color_plotB_line) +
-      theme_minimal() +
-      labs(title = paste("Plot B", i), x = x_var, y = "mpg") +
-      theme(
-        plot.background = element_rect(fill = color_plot_background, color = NA),
-        panel.background = element_rect(fill = color_plot_background, color = NA),
-        text = element_text(color = color_fg),
-        axis.text = element_text(color = color_fg),
-        axis.title = element_text(color = color_fg),
-        plot.title = element_text(face = "bold")
-      )
-    
-    print(p)
-    cat("\n\n")
-  }
-} else {
-  cat("No Plot B visualizations to display.\n\n")
+```{r}
+#| label: notes-plotB-1
+#| results: asis
+
+if (!is.null(params$plotB_notes_1) && params$plotB_notes_1 != "") {
+  cat("\n**Notes:**", params$plotB_notes_1, "\n\n")
+}
+```
+
+
+```{r}
+#| label: fig-plotB-2
+#| fig-height: 4
+#| fig-width: 6
+
+if (!is.null(params$plotB_x_2)) {
+  x_var <- params$plotB_x_2
+  
+  p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
+    geom_point(color = color_plotB_point, size = 3) +
+    geom_smooth(method = "lm", se = FALSE, color = color_plotB_line) +
+    theme_minimal() +
+    labs(title = "Plot B 2", x = x_var, y = "mpg") +
+    theme(
+      plot.background = element_rect(fill = color_plot_background, color = NA),
+      panel.background = element_rect(fill = color_plot_background, color = NA),
+      text = element_text(color = color_fg),
+      axis.text = element_text(color = color_fg),
+      axis.title = element_text(color = color_fg),
+      plot.title = element_text(face = "bold")
+    )
+  
+  print(p)
+}
+```
+
+
+```{r}
+#| label: notes-plotB-2
+#| results: asis
+
+if (!is.null(params$plotB_notes_2) && params$plotB_notes_2 != "") {
+  cat("\n**Notes:**", params$plotB_notes_2, "\n\n")
+}
+```
+
+
+```{r}
+#| label: fig-plotB-3
+#| fig-height: 4
+#| fig-width: 6
+
+if (!is.null(params$plotB_x_3)) {
+  x_var <- params$plotB_x_3
+  
+  p <- ggplot(mtcars, aes(x = .data[[x_var]], y = mpg)) +
+    geom_point(color = color_plotB_point, size = 3) +
+    geom_smooth(method = "lm", se = FALSE, color = color_plotB_line) +
+    theme_minimal() +
+    labs(title = "Plot B 3", x = x_var, y = "mpg") +
+    theme(
+      plot.background = element_rect(fill = color_plot_background, color = NA),
+      panel.background = element_rect(fill = color_plot_background, color = NA),
+      text = element_text(color = color_fg),
+      axis.text = element_text(color = color_fg),
+      axis.title = element_text(color = color_fg),
+      plot.title = element_text(face = "bold")
+    )
+  
+  print(p)
+}
+```
+
+
+```{r}
+#| label: notes-plotB-3
+#| results: asis
+
+if (!is.null(params$plotB_notes_3) && params$plotB_notes_3 != "") {
+  cat("\n**Notes:**", params$plotB_notes_3, "\n\n")
 }
 ```

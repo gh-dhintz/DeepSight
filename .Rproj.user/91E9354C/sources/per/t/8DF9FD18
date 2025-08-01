@@ -3,7 +3,7 @@
     "path": "~/dev/016-knitr-pdf/html.qmd",
     "project_path": "html.qmd",
     "type": "quarto_markdown",
-    "hash": "1690694086",
+    "hash": "2595465595",
     "contents": "",
     "dirty": false,
     "created": 1748016319630.0,
@@ -16,11 +16,11 @@
         "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1748017329,
+    "lastKnownWriteTime": 1749661420,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1748017329899,
+    "last_content_update": 1749661420,
     "read_only": false,
     "read_only_alternatives": []
 }

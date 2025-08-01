@@ -1,0 +1,268 @@
+---
+title: "`r params$title`"
+subtitle: "`r params$subtitle`"
+author:
+  - name: "`r params$name`"
+    affiliations:
+      - name: University of Hamburg
+        department: Biology Department
+      - name: Institute of Something
+        address: Hamburg, Germany
+    email: jane.doe@uni-hamburg.de
+  - name: John Doe
+    affiliations:
+      - name: University of Hamburg
+        department: Biology Department
+date: "`r Sys.Date()`"
+### Comment or remove the following line if NO summary should be shown on the title page
+abstract: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut elit odio. Donec fermentum tellus neque, vitae fringilla orci pretium vitae. Fusce maximus finibus facilisis. Donec ut ullamcorper turpis. Donec ut porta ipsum. Nullam cursus mauris a sapien ornare pulvinar. Aenean malesuada molestie erat quis mattis. Praesent scelerisque posuere faucibus."
+logo1: images/company_logo3.png  # logo on left side of title page
+logo2: images/moto_light.png  # logo on right side of title page
+### Uncomment the following line if the document language is German
+# language: custom_lang.yml
+### Comment or remove the following two lines if NO references are used
+bibliography: [bib/references.bib, bib/packages.bib] # Path to bibliography files 
+csl: bib/sage-harvard.csl                            # Path to reference style file
+### Settings for rendering the document:
+format: 
+  pdf:
+    documentclass: scrbook  
+    classoption: ["onepage", "openany"]
+    geometry:   
+      - top=25mm     # margin settings
+      - bottom=35mm
+      - left=25mm
+      - right=25mm
+      - heightrounded
+    template-partials:
+      - "styles/before-body.tex"
+      - "styles/_titlepage.tex" 
+      - "styles/_coverpage.tex" 
+    include-in-header:
+    - "styles/in-header.tex"
+    - text: |
+        % Make entire TOC entries clickable, not just page numbers
+        \hypersetup{
+          linktocpage=false,
+          linktoc=all
+        }
+    - text: |
+        % Prevent blank pages before chapters
+        \KOMAoptions{twoside=false}
+        \raggedbottom
+        \makeatletter
+        \renewcommand*{\cleardoublepage}{\clearpage}
+        \makeatother
+    # Options for front cover
+    cover-bg-image: "images/cover.png"
+    cover-page-color: "FFFFFF"  # provide hex color code
+    cover-text-color: "3A515C"  # provide hex color code
+    cover-fade-effect: true
+    # Options for table of content
+    toc: true
+    toc-depth: 3
+    toc-title: Contents       # remove line or adjust if language is German
+    number-sections: true
+    number-depth: 3
+    lof: false  # list of figures
+    lot: false  # list of tables
+    # CLICKABLE LINKS SETTINGS
+    colorlinks: true
+    linkcolor: blue          # Color for internal links (TOC, cross-references)
+    urlcolor: blue           # Color for external URLs
+    citecolor: blue          # Color for citation links
+    toccolor: blue           # Color specifically for TOC links
+    links-as-notes: false    # Prevents links from becoming footnotes
+    link-citations: true     # Makes citations clickable
+    # Additional hyperref options for better navigation
+    hyperrefoptions:
+      - bookmarks=true       # Creates PDF bookmarks (sidebar navigation)
+      - bookmarksopen=true   # Opens bookmarks panel by default
+      - bookmarksnumbered=true # Numbers bookmarks
+      - pdfpagemode=UseOutlines # Opens PDF with bookmarks visible
+      - pdftoolbar=true      # Shows PDF toolbar
+      - pdfmenubar=true      # Shows PDF menu bar
+      - pdffitwindow=false   # Don't fit window to page
+      - pdfstartview=FitH    # Fit width on open
+      - colorlinks=true      # Ensure colored links
+      - linktocpage=false    # Make titles clickable, not just page numbers
+    crossref: 
+      chapters: false     # set to 'true' if figure numbering should follow subsections
+      fig-prefix: Fig.    # (default is 'Figure'; adjust if language is German)
+    # Code options:
+    highlight-style: arrow # default 
+execute:
+  echo: false
+  warning: false
+  message: false
+fig-align: center
+editor: source
+params:
+  title: null
+  subtitle: null
+  name: null
+---
+
+```{r}
+#| label: load-packages-and-vars
+#| echo: false
+
+# Load packages
+library(knitr)
+library(ggplot2)
+library(yaml)
+library(dplyr)
+
+# Read plot vars from YAML file
+# Data structure: params (metadata via execute_params) + vars 
+if (file.exists("report_vars.yaml")) {
+  yaml_data <- yaml::read_yaml("report_vars.yaml")
+  vars <- yaml_data$vars  # Plot variables
+  # Note: metadata (title, subtitle, name) comes via execute_params, not from YAML
+} else {
+  stop("report_vars.yaml was not created")
+}
+
+cat("printing vars")
+print(vars )
+
+# Set up colors
+color_bg <- "#F8F9FA"
+color_panel_bg <- "#FFFFFF"
+color_outer_bg <- "#ECECEC"
+color_fg <- "#212529"
+color_primary <- "#cc4c02"
+color_secondary <- "#636363"
+
+```
+
+
+```{r}
+#| label: options-config
+
+options(digits = 4)
+
+#print(vars)
+```
+
+```{r}
+#| label: load-and-preproc-vars
+
+# Get all Plot A parameters that are not NULL
+plot_A_x_params <- vars[grepl("^plot_A_x", names(vars))]
+plot_A_x_params <- plot_A_x_params[!sapply(plot_A_x_params, is.null)]
+plot_A_subcap_params <- vars[grepl("^plot_A_SubCaption_", names(vars))]
+plot_A_subcap_params <- plot_A_subcap_params[!sapply(plot_A_subcap_params, is.null)]
+
+# Get all Plot B parameters that are not NULL
+plot_B_x_params <- vars[grepl("^plot_B_x", names(vars))]
+plot_B_x_params <- plot_B_x_params[!sapply(plot_B_x_params, is.null)]
+plot_B_subcap_params <- vars[grepl("^plot_B_SubCaption_", names(vars))]
+plot_B_subcap_params <- plot_B_subcap_params[!sapply(plot_B_subcap_params, is.null)]
+```
+
+# Dynamic Report
+
+See [site](`r vars$bookmark_url`)
+
+## Scatter Plots with Regression Lines
+### Plot A Visualizations
+
+
+```{r}
+#| label: set-knitr-chunk-params-plot-A
+#| echo: true
+
+# print(plot_A_subcap_params)
+# print(vars$plot_A_n)
+# Set Subcaption  
+if (all(sapply(plot_A_subcap_params, function(x) x == "")) && vars$plot_A_n > 1){
+  # set default captions if there are multiple 'A' plots but no subcaptions were provided
+  subcaption <- sapply(plot_A_x_params, function(x) paste0("Var: ", x))
+} else {
+  # if captions provided, assign captions 
+  subcaption <- plot_A_subcap_params
+}
+
+if(vars$plot_A_n > 1){
+  fig.cap = vars$plot_A_caption_shared
+  layout.ncol = 2
+  fig.subcap = subcaption
+} else {
+  fig.cap = vars$plot_A_caption_shared
+  layout.ncol = NULL
+  fig.subcap = NULL
+}
+
+```
+
+
+```{r}
+#| echo: false
+
+library(patchwork)
+tempfiles <- c()
+for (i in 1:length(plot_A_x_params)){
+letter <- LETTERS[i]
+
+rmd_content <- glue::glue("
+\```{r}
+#| label: fig-plot<<letter>>
+#| fig-height: 4
+#| fig-width: 5
+#| echo: false
+
+
+plots <- list()
+if (length(plot_A_x_params) > 0) {
+  for (j in 1:3) { # changed from 1:vars$plot_A_n
+    x_var <- plot_A_x_params[[1]]
+    dat <- mtcars |> filter(gear == x_var)
+    plots[[j]] <- ggplot(dat, aes(x = mpg)) +
+        geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
+        theme_minimal(base_family = 'Helvetica') +
+        labs(
+          title = paste0('Distribution of MPG (', i, ')'), 
+          x = 'MPG', 
+          y = 'Frequency',
+          caption = 'Plot 1'
+        ) +
+        theme(
+          plot.background = element_rect(fill = color_panel_bg, color = NA),
+          plot.caption = element_text(
+            size = 15,
+            margin = margin(t = 2, b = 2, unit = 'pt')  
+          ),
+          panel.background = element_rect(fill = color_panel_bg, color = NA),
+          text = element_text(color = color_fg),
+          axis.text = element_text(color = color_fg),
+          axis.title = element_text(color = color_fg),
+          plot.title = element_text(face = 'bold', color = color_primary),
+          plot.margin = unit(c(0.8, 0.1, 0.1, 1), 'cm')  # VERY TIGHT margins
+        )
+    
+  }
+}
+(plots[[1]] + plots[[2]]) / plots[[3]]
+\```
+
+See @fig-plot<<letter>>. 
+", .open = "<<", .close = ">>")
+
+# Create a temporary file with .Rmd extension
+temp_file <- tempfile(paste0("file_", i), fileext = ".qmd")
+tempfiles <- c(tempfiles, temp_file)
+
+# Write the content to the temporary file
+writeLines(rmd_content, temp_file)
+}
+```
+
+
+```{r, results='asis'}
+#| echo: false
+#child_files <- c('gen-child-one.Rmd', 'child-two.Rmd')
+for (file in tempfiles) {
+  cat(knitr::knit_child(file, quiet = TRUE), sep = '\n')
+}
+```

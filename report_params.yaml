@@ -1,0 +1,31 @@
+params:
+  nav: Report Export
+  download_trigger: 1
+  parse_url_1: 0
+  parse_url_2: 0
+  load_report_1: 0
+  load_report_2: 0
+  clear_comparison: 0
+  format: PDF
+  plotA_n: 3
+  plotB_n: 1
+  bookmark_url_1: ''
+  bookmark_url_2: ''
+  title: My Report Title
+  subtitle: Analysis Report
+  name: John Doe
+  plotA_x_1: mpg
+  plotA_notes_shared: e
+  plotA_SubCaption_1: a
+  plotA_caption_shared: d
+  plotA_x_2: disp
+  plotA_SubCaption_2: b
+  plotA_x_3: qsec
+  plotA_SubCaption_3: c
+  plotB_x_1: mpg
+  plotB_notes_shared: ''
+  plotB_SubCaption_1: ''
+  plotB_caption_shared: ''
+  bookmark_url: http://127.0.0.1:6988/?_inputs_&nav=%22Report%20Export%22&download_trigger=1&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&format=%22PDF%22&plotA_n=3&plotB_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plotA_x_1=%22mpg%22&plotA_notes_shared=%22e%22&plotA_SubCaption_1=%22a%22&plotA_caption_shared=%22d%22&plotA_x_2=%22disp%22&plotA_SubCaption_2=%22b%22&plotA_x_3=%22qsec%22&plotA_SubCaption_3=%22c%22&plotB_x_1=%22mpg%22&plotB_notes_shared=%22%22&plotB_SubCaption_1=%22%22&plotB_caption_shared=%22%22
+  generated_at: 1.7502615e+09
+

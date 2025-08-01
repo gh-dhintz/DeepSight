@@ -1,0 +1,174 @@
+$eval
+[1] TRUE
+
+$echo
+[1] FALSE
+
+$results
+[1] "markup"
+
+$tidy
+[1] FALSE
+
+$tidy.opts
+NULL
+
+$collapse
+[1] FALSE
+
+$prompt
+[1] FALSE
+
+$comment
+[1] NA
+
+$highlight
+[1] TRUE
+
+$size
+[1] "normalsize"
+
+$background
+[1] "#F7F7F7"
+
+$strip.white
+[1] TRUE
+
+$cache
+[1] FALSE
+
+$cache.path
+[1] "pdf_6_cache/pdf/"
+
+$cache.vars
+NULL
+
+$cache.lazy
+[1] TRUE
+
+$dependson
+NULL
+
+$autodep
+[1] FALSE
+
+$cache.rebuild
+[1] FALSE
+
+$fig.keep
+[1] "high"
+
+$fig.show
+[1] "asis"
+
+$fig.align
+[1] "default"
+
+$fig.path
+[1] "pdf_6_files/figure-pdf/"
+
+$dev
+[1] "pdf"
+
+$dev.args
+$dev.args$pdf
+$dev.args$pdf$useDingbats
+[1] FALSE
+
+
+
+$dpi
+[1] 300
+
+$fig.ext
+NULL
+
+$fig.width
+[1] 5.5
+
+$fig.height
+[1] 3.5
+
+$fig.env
+[1] "figure"
+
+$fig.cap
+NULL
+
+$fig.scap
+NULL
+
+$fig.lp
+[1] "fig:"
+
+$fig.subcap
+$fig.subcap$plotA_SubCaption_1
+[1] ""
+
+
+$fig.pos
+[1] ""
+
+$out.width
+NULL
+
+$out.height
+NULL
+
+$out.extra
+NULL
+
+$fig.retina
+NULL
+
+$external
+[1] TRUE
+
+$sanitize
+[1] FALSE
+
+$interval
+[1] 1
+
+$aniopts
+[1] "controls,loop"
+
+$warning
+[1] FALSE
+
+$error
+[1] FALSE
+
+$message
+[1] FALSE
+
+$render
+NULL
+
+$ref.label
+NULL
+
+$child
+NULL
+
+$engine
+[1] "R"
+
+$split
+[1] FALSE
+
+$include
+[1] TRUE
+
+$purl
+[1] TRUE
+
+$fig.asp
+NULL
+
+$fenced.echo
+[1] FALSE
+
+$ft.shadow
+[1] FALSE
+
