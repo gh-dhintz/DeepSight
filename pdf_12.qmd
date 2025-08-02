@@ -195,7 +195,7 @@ print(plot_A_params)
 ```{r}
 #| echo: false
 
-my_title= "my_title"
+my_title= plot_A_params$plot_B_annotation_2_1
 my_subtitle = "my_subtitle"
 final_caption = "final_caption"
 

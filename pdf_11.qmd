@@ -4,15 +4,22 @@ subtitle: "`r params$subtitle`"
 author:
   - name: "`r params$name`"
     affiliations:
-      - name: University of Hamburg
-        department: Biology Department
-      - name: Institute of Something
-        address: Hamburg, Germany
-    email: jane.doe@uni-hamburg.de
-  - name: John Doe
+      - name: Eli Lilly
+  - name: Nicole Zhang
     affiliations:
-      - name: University of Hamburg
-        department: Biology Department
+      - name: Guardant Health
+        department: Real World Evidence
+    email: niczhang@guardanthealth.com
+  - name: Thomas Schmitt
+    affiliations:
+      - name: Guardant Health
+        department: Business Development
+    email: tschmitt@guardanthealth.com
+  - name: Daniel Hintz
+    affiliations:
+      - name: Guardant Health
+        department: Real World Evidence
+    email: dhintz@guardanthealth.com
 date: "`r Sys.Date()`"
 ### Comment or remove the following line if NO summary should be shown on the title page
 abstract: "Abstract goes here."

@@ -4,7 +4,7 @@ params:
   name: John Doe
 vars:
   nav: Report Export
-  plots_subtabs: Treatment Selection (A)
+  plots_subtabs: ESR1 Dx Landscape (B)
   load_basic_report: 0
   load_basic_report_two: 0
   update_and_copy_url: 0
@@ -22,13 +22,26 @@ vars:
   bookmark_url_1: ''
   bookmark_url_2: ''
   plot_A_x1: '4'
-  plot_A_annotation_1_1: fig-plot-A-1
+  plot_A_annotation_1_1: fig-A-1
+  plot_A_annotation_2_1: Plot A.I
+  plot_A_annotation_3_1: Figure I Analysis
+  plot_A_annotation_4_1: Panel A.I.1
+  plot_A_annotation_5_1: Panel A.I.2
+  plot_A_annotation_6_1: Panel A.I.3
+  plot_A_annotation_7_1: Figure A.I
   plot_A_Notes_shared: ''
   plot_B_x1: '4'
-  plot_B_annotation_1_1: fig-plot-B-1
+  plot_B_annotation_1_1: fig-B-1
+  plot_B_annotation_2_1: Plot B.I
+  plot_B_annotation_3_1: Figure I Analysis
+  plot_B_annotation_4_1: Panel B.I.1
+  plot_B_annotation_5_1: Panel B.I.2
+  plot_B_annotation_6_1: Panel B.I.3
+  plot_B_annotation_7_1: Panel B.I.4
+  plot_B_annotation_8_1: Figure B.I
   plot_B_Notes_shared: ''
   plot_A_caption_shared: ''
   plot_B_caption_shared: ''
-  bookmark_url: http://127.0.0.1:7931/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Selection%20(A)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=1&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%224%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22%22&plot_A_annotation_2_1=%22%22&plot_A_annotation_3_1=%22%22&plot_A_annotation_4_1=%22%22&plot_A_annotation_5_1=%22%22&plot_A_annotation_6_1=%22%22&plot_A_annotation_7_1=%22%22&plot_B_x1=%224%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22%22&plot_B_annotation_2_1=%22%22&plot_B_annotation_3_1=%22%22&plot_B_annotation_4_1=%22%22&plot_B_annotation_5_1=%22%22&plot_B_annotation_6_1=%22%22&plot_B_annotation_7_1=%22%22&plot_B_annotation_8_1=%22%22
-  generated_at: 1.7540793e+09
+  bookmark_url: http://127.0.0.1:4794/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22ESR1%20Dx%20Landscape%20(B)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=1&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%224%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22%22&plot_A_annotation_2_1=%22%22&plot_A_annotation_3_1=%22%22&plot_A_annotation_4_1=%22%22&plot_A_annotation_5_1=%22%22&plot_A_annotation_6_1=%22%22&plot_A_annotation_7_1=%22%22&plot_B_x1=%224%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22%22&plot_B_annotation_2_1=%22%22&plot_B_annotation_3_1=%22%22&plot_B_annotation_4_1=%22%22&plot_B_annotation_5_1=%22%22&plot_B_annotation_6_1=%22%22&plot_B_annotation_7_1=%22%22&plot_B_annotation_8_1=%22%22
+  generated_at: 1.7541675e+09
 
