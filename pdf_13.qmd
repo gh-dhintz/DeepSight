@@ -111,7 +111,7 @@ params:
 ---
 
 <!--
-pdf_12.qmd
+pdf_13.qmd
 -->
 ```{r}
 #| label: load-packages-and-vars
@@ -211,6 +211,9 @@ plot_rep_num <- as.roman(1:10)[i]
 letter <- LETTERS[i]
 my_title = plot_A_annotations[[paste0("plot_A_annotation_", i, "_2")]]
 my_subtitle = plot_A_annotations[[paste0("plot_A_annotation_", i, "_3")]]
+my_pnl1_cap = plot_A_annotations[[paste0("plot_A_annotation_", i, "_4")]]
+my_pnl2_cap = plot_A_annotations[[paste0("plot_A_annotation_", i, "_5")]]
+my_pnl3_cap = plot_A_annotations[[paste0("plot_A_annotation_", i, "_6")]]
 final_caption = plot_A_annotations[[paste0("plot_A_annotation_", i, "_7")]]
 
 x_var <- (plot_A_params[grepl("^plot_A_x[0-9]", names(plot_A_params))])[[i]]  # Extract the actual value here
@@ -273,27 +276,7 @@ rmd_content <- glue::glue("
 #| echo: false
 
 dat <- mtcars |> filter(gear == x_var)
-p1 <- ggplot(dat, aes(x = mpg)) +
-  geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
-  theme_minimal(base_family = 'HelveticaNeue-Light') +
-  labs(
-    title = paste0('Distribution of MPG (', i, ')'), 
-    x = 'MPG', 
-    y = 'Frequency',
-    caption = 'Plot 1'
-  ) +
-  base_theme 
 
-p2 <- ggplot(dat, aes(x = hp)) +
-  geom_histogram(fill = color_secondary, color = color_primary, alpha = 0.7, bins = 15) +
-  theme_minimal(base_family = 'HelveticaNeue-Light') +
-  labs(
-    title = paste0('Distribution of HP (', i, ')'), 
-    x = 'HP', 
-    y = 'Frequency',
-    caption = 'Plot 2'
-  ) +
-  base_theme 
 
 # Create GT table with custom CSS for width control
 table_data <- dat %>%
@@ -340,8 +323,8 @@ gt_tab <- table_data %>%
     hp ~ px(60)
   )
 
-table_with_caption <- wrap_table(gt_tab, panel = 'full', space = 'fixed') +
-  labs(caption = 'Table 1') + 
+p1  <- wrap_table(gt_tab, panel = 'full', space = 'fixed') +
+  labs(caption = '<<my_pnl1_cap>>') + 
   theme_minimal() +
   theme(
     plot.margin = unit(c(0.8, 0.8, 0.1, 0.1), 'cm'),
@@ -352,14 +335,38 @@ table_with_caption <- wrap_table(gt_tab, panel = 'full', space = 'fixed') +
     ),
     text = element_text(family = 'HelveticaNeue-Light')
 )  
+  
+p2 <- ggplot(dat, aes(x = mpg)) +
+  geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
+  theme_minimal(base_family = 'HelveticaNeue-Light') +
+  labs(
+    title = paste0('Distribution of MPG (', i, ')'), 
+    x = 'MPG', 
+    y = 'Frequency',
+    caption = '<<my_pnl2_cap>>'
+  ) +
+  base_theme 
+
+p3 <- ggplot(dat, aes(x = hp)) +
+  geom_histogram(fill = color_secondary, color = color_primary, alpha = 0.7, bins = 15) +
+  theme_minimal(base_family = 'HelveticaNeue-Light') +
+  labs(
+    title = paste0('Distribution of HP (', i, ')'), 
+    x = 'HP', 
+    y = 'Frequency',
+    caption = '<<my_pnl3_cap>>'
+  ) +
+  base_theme 
+
 
 # Combine with patchwork and use the final caption
-(table_with_caption + p1) / p2 + 
+(p1 + p2) / p3 + 
   plot_annotation(
     title = '<<my_title>>',
     subtitle = '<<my_subtitle>>',
     caption = '<<final_caption>>',  
-    tag_levels = 'A',
+    tag_levels = '1',
+    tag_suffix = ')',
     theme = theme_border
   ) +
   plot_layout(
@@ -407,9 +414,13 @@ tempfiles <- c()
 for (i in 1:plot_B_params$plot_B_n){
 plot_rep_num <- as.roman(1:10)[i]
 letter <- LETTERS[i]
-my_title= plot_B_annotations[[paste0("plot_B_annotation_", i, "_2")]]
+my_title = plot_B_annotations[[paste0("plot_B_annotation_", i, "_2")]]
 my_subtitle = plot_B_annotations[[paste0("plot_B_annotation_", i, "_3")]]
-final_caption = plot_B_annotations[[paste0("plot_B_annotation_", i, "_7")]]
+my_pnl1_cap = plot_B_annotations[[paste0("plot_B_annotation_", i, "_4")]]
+my_pnl2_cap = plot_B_annotations[[paste0("plot_B_annotation_", i, "_5")]]
+my_pnl3_cap = plot_B_annotations[[paste0("plot_B_annotation_", i, "_6")]]
+my_pnl4_cap = plot_B_annotations[[paste0("plot_B_annotation_", i, "_7")]]
+final_caption = plot_B_annotations[[paste0("plot_B_annotation_", i, "_8")]]
 
 x_var <- (plot_B_params[grepl("^plot_B_x[0-9]", names(plot_B_params))])[[i]]  # Extract the actual value here
 
@@ -440,7 +451,7 @@ p1 <- ggplot(dat, aes(x = mpg)) +
       title = paste0('ESR1 Expression Distribution (', i, ')'), 
       x = 'Expression Level', 
       y = 'Frequency',
-      caption = 'Plot 1'  # ← CHANGE: Use annotation caption
+      caption = '<<my_pnl1_cap>>' 
     ) +
     theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = 'pt'))
   
@@ -452,7 +463,7 @@ p2 <- ggplot(dat, aes(x = hp)) +
     title = paste0('ESR1 Mutation Frequency (', i, ')'), 
     x = 'Mutation Count', 
     y = 'Frequency',
-    caption = 'Plot 2'   # ← CHANGE: Use annotation caption
+    caption = '<<my_pnl2_cap>>'  
   ) +
   theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = 'pt'))
 
@@ -463,7 +474,7 @@ p3 <- ggplot(dat, aes(x = disp)) +
     title = paste0('ESR1 Response Correlation (', i, ')'), 
     x = 'Response Score', 
     y = 'Frequency',
-    caption =  'Plot 3'  
+    caption =  '<<my_pnl3_cap>>'
   ) +
   theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = 'pt'))
 
@@ -474,16 +485,17 @@ p4 <- ggplot(dat, aes(x = wt)) +
     title = paste0('ESR1 Diagnostic Accuracy (', i, ')'), 
     x = 'Accuracy Score', 
     y = 'Frequency',
-    caption =  'Plot 4'  
+    caption =  '<<my_pnl4_cap>>'
   ) +
   theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = 'pt'))
 
 p1 / (p2 + (p3 / p4)) + 
     plot_annotation(
-      title = 'title',      # ← CHANGE: Use annotation title
-      subtitle = 'subtitle'  , # ← CHANGE: Use annotation subtitle
-      caption =   'caption',  # ← CHANGE: Use annotation overall caption
-      tag_levels = 'A', 
+      title = '<<my_title>>',     
+      subtitle = '<<my_subtitle>>', 
+      caption =   '<<final_caption>>',  
+      tag_levels = '1',
+      tag_suffix = ')',
       theme = theme_border
     ) +
     plot_layout(
