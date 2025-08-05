@@ -1,0 +1,159 @@
+---
+title: "Master Plot C Test - Separate Files"
+format: pdf
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+library(ggplot2)
+library(survival)
+library(survminer)
+library(patchwork)
+
+# Colors and themes
+color_bg <- "#F8F9FA"
+color_panel_bg <- "#FFFFFF"
+color_fg <- "#212529"
+color_primary <- "#cc4c02"
+color_secondary <- "#636363"
+
+# Survival data function
+create_survival_data <- function(n = 100, seed = 123) {
+  set.seed(seed)
+  treatment <- sample(c("Treatment A", "Treatment B"), n, replace = TRUE)
+  time <- ifelse(treatment == "Treatment A", 
+                 rexp(n, rate = 0.05), 
+                 rexp(n, rate = 0.08))
+  censoring_prob <- 0.3
+  event <- rbinom(n, 1, 1 - censoring_prob)
+  time <- ifelse(event == 0, 
+                 pmin(time, runif(n, 5, 30)), 
+                 time)
+  data.frame(
+    time = time,
+    event = event,
+    treatment = treatment,
+    age = rnorm(n, 60, 10),
+    stage = sample(c("Early", "Advanced"), n, replace = TRUE, prob = c(0.6, 0.4))
+  )
+}
+
+base_theme <- theme_minimal(base_family = "sans") +
+  theme(
+    plot.background = element_rect(fill = color_panel_bg, color = NA),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = "pt")),
+    panel.background = element_rect(fill = color_panel_bg, color = NA),
+    text = element_text(color = color_fg),
+    axis.text = element_text(color = color_fg),
+    axis.title = element_text(color = color_fg),
+    plot.title = element_text(face = "bold", color = color_primary)
+  )
+
+theme_border <- theme_void() + 
+  theme(
+    plot.background = element_rect(fill = NA, colour = "#f4dbcc", linewidth = 1),
+    plot.title = element_text(size = 17, hjust = 0.5, face = "bold", family = "sans"),
+    plot.subtitle = element_text(size = 15, hjust = 0.5, family = "sans"),
+    plot.caption = element_text(size = 12, colour = "#C0C0C0", hjust = 0.9),
+    plot.tag = element_text(size = 17, face = "bold", color = "#cc4c02")
+  )
+
+# Helper function for pure ggplot survival
+create_survival_df <- function(fit) {
+  surv_summary <- summary(fit)
+  data.frame(
+    time = c(0, surv_summary$time),
+    surv = c(1, surv_summary$surv),
+    lower = c(1, surv_summary$lower),
+    upper = c(1, surv_summary$upper),
+    strata = c(names(fit$strata)[1], surv_summary$strata)
+  )
+}
+```
+
+## Test 1: Direct ggsurvplot (Control - Should Work)
+
+```{r}
+#| label: direct-control
+#| fig-height: 6
+#| fig-width: 7
+
+message("Creating direct survival plot...")
+
+surv_data <- create_survival_data(n = 150, seed = 124)
+surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+
+p1_survplot <- ggsurvplot(
+  surv_obj_treatment,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c(color_primary, color_secondary),
+  ggtheme = base_theme,
+  title = "Direct ggsurvplot (Should Work)",
+  xlab = "Time (months)",
+  ylab = "Survival Probability",
+  legend.title = "Treatment"
+)
+
+p1 <- p1_survplot$plot + labs(caption = "Direct method")
+print(p1)
+message("Direct plot completed")
+```
+
+## Test 2: Child with ggsurvplot (Problematic)
+
+```{r}
+#| results: asis
+
+message("Calling child with ggsurvplot...")
+result1 <- knitr::knit_child("child_ggsurvplot_fixed.qmd", quiet = FALSE)
+cat(result1, sep = "\\n")
+message("Child ggsurvplot completed")
+```
+
+## Test 3: Child with Pure ggplot (Should Work)
+
+```{r}
+#| results: asis
+
+message("Calling child with pure ggplot...")
+result2 <- knitr::knit_child("child_pure_ggplot_fixed.qmd", quiet = FALSE)
+cat(result2, sep = "\\n")
+message("Child pure ggplot completed")
+```
+
+## Test 4: Direct Pure ggplot (Control - Should Work)
+
+```{r}
+#| label: direct-pure-control
+#| fig-height: 6
+#| fig-width: 7
+
+message("Creating direct pure ggplot...")
+
+surv_treatment_df <- create_survival_df(surv_obj_treatment)
+surv_treatment_df$group <- sub("treatment=", "", surv_treatment_df$strata)
+
+p1_pure <- ggplot(surv_treatment_df, aes(x = time, y = surv, color = group)) +
+  geom_step(size = 1) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.2, color = NA) +
+  scale_color_manual(values = c("Treatment A" = color_primary, "Treatment B" = color_secondary)) +
+  scale_fill_manual(values = c("Treatment A" = color_primary, "Treatment B" = color_secondary)) +
+  base_theme +
+  labs(
+    title = "Direct Pure ggplot (Should Work)",
+    x = "Time (months)",
+    y = "Survival Probability",
+    caption = "Direct pure ggplot method"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+
+print(p1_pure)
+message("Direct pure ggplot completed")
+```

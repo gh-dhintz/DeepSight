@@ -593,8 +593,8 @@ plot_rep_num <- as.roman(1:10)[i]
 letter <- LETTERS[i]
 my_title = plot_C_annotations[[paste0("plot_C_annotation_", i, "_2")]]
 my_subtitle = plot_C_annotations[[paste0("plot_C_annotation_", i, "_3")]]
-my_pnl1_cap = plot_C_annotations[[paste0("plot_C_annotation_", i, "_4")]]  # Survival Plot 1
-my_pnl2_cap = plot_C_annotations[[paste0("plot_C_annotation_", i, "_5")]]  # Survival Plot 2
+my_pnl1_cap = plot_C_annotations[[paste0("plot_C_annotation_", i, "_4")]]
+my_pnl2_cap = plot_C_annotations[[paste0("plot_C_annotation_", i, "_5")]]
 final_caption = plot_C_annotations[[paste0("plot_C_annotation_", i, "_6")]]
 
 x_var <- (plot_C_params[grepl("^plot_C_x[0-9]", names(plot_C_params))])[[i]]
@@ -618,7 +618,7 @@ theme_border <- theme_void() +
     plot.tag = element_text(size = 17, face = "bold", color = "#cc4c02")
   )
 
-# Get reference label
+# Get reference label - FIXED: Use new naming convention
 ref_param_name <- paste0("plot_C_annotation_", i, "_1")
 fig.plot.C.ref <- plot_C_annotations[[ref_param_name]]
 

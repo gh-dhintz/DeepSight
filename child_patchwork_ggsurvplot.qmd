@@ -1,0 +1,100 @@
+```{r}
+#| label: fig-C-1
+#| fig-height: 6
+#| fig-width: 7
+#| echo: false
+
+message("CHILD PATCHWORK GGSURVPLOT: Starting")
+
+# Your exact Plot C code in child context
+i <- 1
+surv_data <- create_survival_data(n = 150, seed = 123 + i)
+
+message("CHILD PATCHWORK GGSURVPLOT: Data created")
+
+# Create survival objects
+surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+surv_obj_stage <- survfit(Surv(time, event) ~ stage, data = surv_data)
+
+message("CHILD PATCHWORK GGSURVPLOT: Survival objects created")
+
+# Plot 1 - Survival by Treatment
+# Create the survplot and extract the ggplot object
+p1_survplot <- ggsurvplot(
+  surv_obj_treatment,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c(color_primary, color_secondary),
+  ggtheme = base_theme,
+  title = paste0('Survival by Treatment (', i, ')'),
+  xlab = 'Time (months)',
+  ylab = 'Survival Probability',
+  legend.title = 'Treatment',
+  legend.labs = c('Treatment A', 'Treatment B')
+)
+
+message("CHILD PATCHWORK GGSURVPLOT: p1_survplot created")
+
+# Extract the ggplot object and add caption
+p1 <- p1_survplot$plot +
+  labs(caption = my_pnl1_cap) +
+  theme(
+    plot.margin = unit(c(0.8, 0.1, 0.1, 1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  )
+
+message("CHILD PATCHWORK GGSURVPLOT: p1 extracted")
+
+# Plot 2 - Survival by Stage
+p2_survplot <- ggsurvplot(
+  surv_obj_stage,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c('#2E8B57', '#CD853F'),
+  ggtheme = base_theme,
+  title = paste0('Survival by Disease Stage (', i, ')'),
+  xlab = 'Time (months)',
+  ylab = 'Survival Probability',
+  legend.title = 'Stage',
+  legend.labs = c('Advanced', 'Early')
+)
+
+message("CHILD PATCHWORK GGSURVPLOT: p2_survplot created")
+
+# Extract the ggplot object and add caption
+p2 <- p2_survplot$plot +
+  labs(caption = my_pnl2_cap) +
+  theme(
+    plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  )
+
+message("CHILD PATCHWORK GGSURVPLOT: p2 extracted")
+
+# Combine with patchwork (now using extracted ggplot objects)
+child_combined <- p1 / p2 + 
+  plot_annotation(
+    title = my_title,
+    subtitle = my_subtitle,
+    caption = final_caption,
+    tag_levels = '1',
+    tag_suffix = ')',
+    theme = theme_border
+  ) +
+  plot_layout(
+    heights = c(1, 1),  # Equal heights for both survival plots
+    guides = 'collect'
+  )
+
+message("CHILD PATCHWORK GGSURVPLOT: Patchwork combined, about to print")
+print(child_combined)
+message("CHILD PATCHWORK GGSURVPLOT: Print completed")
+```
+
+Notes shared text here.
+
+See @fig-C-1.

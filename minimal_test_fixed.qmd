@@ -1,0 +1,31 @@
+---
+title: "Minimal knit_child Test - Fixed"
+format: pdf
+execute:
+  echo: false
+---
+
+```{r}
+library(ggplot2)
+```
+
+## Direct Plot (Control)
+
+```{r}
+#| label: direct-minimal
+
+direct_plot <- ggplot(mtcars[1:10,], aes(x = mpg, y = hp)) +
+  geom_point(size = 3, color = "red") +
+  labs(title = "Direct Plot - Should Work")
+
+print(direct_plot)
+```
+
+## Child Plot Test
+
+```{r}
+#| results: asis
+
+result <- knitr::knit_child("minimal_child_fixed.qmd", quiet = FALSE)
+cat(result, sep = "\n")
+```

@@ -1,0 +1,200 @@
+---
+title: "Patchwork Survival Plot Test - Exact Plot C Context"
+format: pdf
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+library(ggplot2)
+library(survival)
+library(survminer)
+library(patchwork)
+library(glue)
+
+# Your exact colors and themes from Plot C
+color_bg <- "#F8F9FA"
+color_panel_bg <- "#FFFFFF"
+color_fg <- "#212529"
+color_primary <- "#cc4c02"
+color_secondary <- "#636363"
+
+# Exact survival data function from your code
+create_survival_data <- function(n = 100, seed = 123) {
+  set.seed(seed)
+  treatment <- sample(c("Treatment A", "Treatment B"), n, replace = TRUE)
+  time <- ifelse(treatment == "Treatment A", 
+                 rexp(n, rate = 0.05), 
+                 rexp(n, rate = 0.08))
+  censoring_prob <- 0.3
+  event <- rbinom(n, 1, 1 - censoring_prob)
+  time <- ifelse(event == 0, 
+                 pmin(time, runif(n, 5, 30)), 
+                 time)
+  data.frame(
+    time = time,
+    event = event,
+    treatment = treatment,
+    age = rnorm(n, 60, 10),
+    stage = sample(c("Early", "Advanced"), n, replace = TRUE, prob = c(0.6, 0.4))
+  )
+}
+
+# Your exact themes from Plot C
+base_theme <- theme_minimal(base_family = "sans") +  # Using sans instead of HelveticaNeue-Light
+  theme(
+    plot.background = element_rect(fill = color_panel_bg, color = NA),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = "pt")),
+    panel.background = element_rect(fill = color_panel_bg, color = NA),
+    text = element_text(color = color_fg),
+    axis.text = element_text(color = color_fg),
+    axis.title = element_text(color = color_fg),
+    plot.title = element_text(face = "bold", color = color_primary)
+  )
+
+theme_border <- theme_void() + 
+  theme(
+    plot.title = element_text(size = 17, hjust = 0.5, face = "bold", family = "sans"),
+    plot.subtitle = element_text(size = 15, hjust = 0.5, family = "sans"),
+    plot.caption = element_text(size = 12, colour = "#C0C0C0", hjust = 0.9),
+    plot.tag = element_text(size = 17, face = "bold", color = "#cc4c02")
+  )
+
+# Helper function for pure ggplot survival (alternative method)
+convert_survfit_to_df <- function(fit, group_name = "group") {
+  if (length(fit$strata) > 0) {
+    surv_summary <- summary(fit)
+    df <- data.frame(
+      time = c(0, surv_summary$time),
+      surv = c(1, surv_summary$surv),
+      lower = c(1, surv_summary$lower),
+      upper = c(1, surv_summary$upper),
+      strata = c(names(fit$strata)[1], surv_summary$strata)
+    )
+    df$group <- sub(paste0(group_name, "="), "", df$strata)
+  } else {
+    surv_summary <- summary(fit)
+    df <- data.frame(
+      time = c(0, surv_summary$time),
+      surv = c(1, surv_summary$surv),
+      lower = c(1, surv_summary$lower),
+      upper = c(1, surv_summary$upper),
+      group = "All"
+    )
+  }
+  return(df)
+}
+
+# Mock annotations for testing (simulates your plot_C_annotations)
+my_title <- "Survival Analysis I"
+my_subtitle <- "Comprehensive survival evaluation"
+my_pnl1_cap <- "Panel I.1"
+my_pnl2_cap <- "Panel I.2"
+final_caption <- "Figure I"
+plot.C.Notes.shared <- "These plots show survival analysis. See @fig-C-1 for details."
+```
+
+## Test 1: Direct Patchwork with ggsurvplot (Control)
+
+```{r}
+#| label: direct-patchwork-control
+#| fig-height: 6
+#| fig-width: 7
+
+message("Creating direct patchwork with ggsurvplot...")
+
+# Your exact Plot C logic
+i <- 1
+surv_data <- create_survival_data(n = 150, seed = 123 + i)
+surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+surv_obj_stage <- survfit(Surv(time, event) ~ stage, data = surv_data)
+
+# Plot 1 - Survival by Treatment (exact from your code)
+p1_survplot <- ggsurvplot(
+  surv_obj_treatment,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c(color_primary, color_secondary),
+  ggtheme = base_theme,
+  title = paste0('Survival by Treatment (', i, ')'),
+  xlab = 'Time (months)',
+  ylab = 'Survival Probability',
+  legend.title = 'Treatment',
+  legend.labs = c('Treatment A', 'Treatment B')
+)
+
+p1 <- p1_survplot$plot +
+  labs(caption = my_pnl1_cap) +
+  theme(
+    plot.margin = unit(c(0.8, 0.1, 0.1, 1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  )
+
+# Plot 2 - Survival by Stage (exact from your code)
+p2_survplot <- ggsurvplot(
+  surv_obj_stage,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c('#2E8B57', '#CD853F'),
+  ggtheme = base_theme,
+  title = paste0('Survival by Disease Stage (', i, ')'),
+  xlab = 'Time (months)',
+  ylab = 'Survival Probability',
+  legend.title = 'Stage',
+  legend.labs = c('Advanced', 'Early')
+)
+
+p2 <- p2_survplot$plot +
+  labs(caption = my_pnl2_cap) +
+  theme(
+    plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  )
+
+# Exact patchwork combination from your code
+direct_combined <- p1 / p2 + 
+  plot_annotation(
+    title = my_title,
+    subtitle = my_subtitle,
+    caption = final_caption,
+    tag_levels = '1',
+    tag_suffix = ')',
+    theme = theme_border
+  ) +
+  plot_layout(
+    heights = c(1, 1),
+    guides = 'collect'
+  )
+
+print(direct_combined)
+message("Direct patchwork completed")
+```
+
+## Test 2: Child Patchwork with ggsurvplot (Your Exact Plot C Code)
+
+```{r}
+#| results: asis
+
+message("Testing child patchwork with ggsurvplot (your exact Plot C code)...")
+result1 <- knitr::knit_child("child_patchwork_ggsurvplot.qmd", quiet = FALSE)
+cat(result1, sep = "\n")
+message("Child patchwork ggsurvplot completed")
+```
+
+## Test 3: Child Patchwork with Pure ggplot (Alternative Solution)
+
+```{r}
+#| results: asis
+
+message("Testing child patchwork with pure ggplot (alternative solution)...")
+result2 <- knitr::knit_child("child_patchwork_pure.qmd", quiet = FALSE)
+cat(result2, sep = "\n")
+message("Child patchwork pure ggplot completed")
+```

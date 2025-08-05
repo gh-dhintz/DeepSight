@@ -1,0 +1,49 @@
+```{r}
+#| label: child-pure-ggplot-test
+#| fig-height: 6
+#| fig-width: 7
+#| echo: false
+
+message("CHILD PURE: Starting")
+
+# Create survival data
+surv_data <- create_survival_data(n = 150, seed = 126)
+surv_obj <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+
+message("CHILD PURE: Survival object created")
+
+# Manual survival curve data conversion
+surv_summary <- summary(surv_obj)
+surv_df <- data.frame(
+  time = c(0, surv_summary$time),
+  surv = c(1, surv_summary$surv),
+  lower = c(1, surv_summary$lower),
+  upper = c(1, surv_summary$upper),
+  strata = c(names(surv_obj$strata)[1], surv_summary$strata)
+)
+surv_df$group <- sub("treatment=", "", surv_df$strata)
+
+message("CHILD PURE: Data frame created")
+
+# Pure ggplot approach (should work in knit_child)
+child_plot <- ggplot(surv_df, aes(x = time, y = surv, color = group)) +
+  geom_step(size = 1.2) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.2, color = NA) +
+  scale_color_manual(values = c("Treatment A" = color_primary, "Treatment B" = color_secondary)) +
+  scale_fill_manual(values = c("Treatment A" = color_primary, "Treatment B" = color_secondary)) +
+  base_theme +
+  labs(
+    title = "Child Pure ggplot (Should Work)",
+    x = "Time (months)",
+    y = "Survival Probability",
+    caption = "Child pure ggplot method",
+    color = "Treatment",
+    fill = "Treatment"
+  ) +
+  theme(legend.position = "bottom") +
+  coord_cartesian(ylim = c(0, 1))
+
+message("CHILD PURE: Plot created, about to print")
+print(child_plot)
+message("CHILD PURE: Print completed")
+```

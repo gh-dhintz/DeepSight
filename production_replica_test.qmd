@@ -1,0 +1,294 @@
+---
+title: "Production Environment Replica Test"
+format: 
+  pdf:
+    documentclass: scrbook  
+    classoption: ["onepage", "openany"]
+    geometry:   
+      - top=25mm
+      - bottom=35mm
+      - left=25mm
+      - right=25mm
+      - heightrounded
+    colorlinks: true
+    linkcolor: blue
+    crossref: 
+      chapters: false
+      fig-prefix: Fig.
+execute:
+  echo: false
+  warning: false
+  message: false
+fig-align: center
+params:
+  title: "Test Report"
+  subtitle: "Production Environment Test"
+  name: "Test Author"
+---
+
+```{r}
+#| label: load-packages-and-vars
+#| echo: false
+
+# Load packages - EXACT same order as your pdf_14.qmd
+library(knitr)
+library(ggplot2)
+library(yaml)
+library(dplyr)
+library(patchwork)
+library(showtext)
+library(gt)
+library(survival)
+library(survminer)
+
+# Mock your YAML data structure
+vars <- list(
+  plot_C_n = 1,
+  plot_C_x1 = 3,
+  plot_C_annotation_1_1 = "fig-C-1",
+  plot_C_annotation_1_2 = "Production Test Survival Analysis",
+  plot_C_annotation_1_3 = "Testing exact production environment",
+  plot_C_annotation_1_4 = "Treatment Survival Panel",
+  plot_C_annotation_1_5 = "Stage Survival Panel", 
+  plot_C_annotation_1_6 = "Complete Survival Analysis",
+  plot_C_Notes_shared = "This survival analysis tests the production environment exactly. See @fig-C-1 for details.",
+  bookmark_url = "http://test.com"
+)
+
+# Set up colors - EXACT same as your pdf_14.qmd
+color_bg <- "#F8F9FA"
+color_panel_bg <- "#FFFFFF"
+color_outer_bg <- "#ECECEC"
+color_fg <- "#212529"
+color_primary <- "#cc4c02"
+color_secondary <- "#636363"
+```
+
+```{r}
+#| label: survival-data-function
+#| echo: false
+
+# EXACT same function as your pdf_14.qmd
+create_survival_data <- function(n = 100, seed = 123) {
+  set.seed(seed)
+  
+  # Create survival data for two treatment groups
+  treatment <- sample(c("Treatment A", "Treatment B"), n, replace = TRUE)
+  
+  # Generate survival times (exponential distribution with different hazards)
+  time <- ifelse(treatment == "Treatment A", 
+                 rexp(n, rate = 0.05), 
+                 rexp(n, rate = 0.08))
+  
+  # Generate censoring (some patients don't experience event)
+  censoring_prob <- 0.3
+  event <- rbinom(n, 1, 1 - censoring_prob)
+  
+  # For censored observations, truncate time at random point
+  time <- ifelse(event == 0, 
+                 pmin(time, runif(n, 5, 30)), 
+                 time)
+  
+  data.frame(
+    time = time,
+    event = event,
+    treatment = treatment,
+    age = rnorm(n, 60, 10),
+    stage = sample(c("Early", "Advanced"), n, replace = TRUE, prob = c(0.6, 0.4))
+  )
+}
+```
+
+```{r}
+#| label: Loading-fonts
+
+# Try to load fonts but don't fail if missing
+tryCatch({
+  font_add("HelveticaNeue-Light", "Helvetica_Neue_Fonts/HelveticaNeueLTStd-Lt.otf")
+  font_add("HelveticaNeue-Regular", "Helvetica_Neue_Fonts/HelveticaNeueLTStd-Roman.otf") 
+  font_add("HelveticaNeue-Italic", "Helvetica_Neue_Fonts/HelveticaNeueLTStd-It.otf")
+  font_add("HelveticaNeue-Medium", "Helvetica_Neue_Fonts/HelveticaNeueLTStd-Md.otf")
+  font_add("HelveticaNeue-Bold", "Helvetica_Neue_Fonts/HelveticaNeueLTStd-Bd.otf")
+  showtext_auto()
+}, error = function(e) {
+  message("Font loading failed, using default fonts")
+})
+```
+
+```{r}
+#| label: load-and-preproc-vars
+
+# Process Plot C parameters EXACTLY like your pdf_14.qmd
+plot_C_params <- vars[grepl("^plot_C", names(vars))]
+plot_C_params <- plot_C_params[!sapply(plot_C_params, is.null)]
+plot_C_annotations <- vars[grepl("^plot_C_annotation_[0-9]", names(vars))]
+plot_C_annotations <- plot_C_annotations[!sapply(plot_C_annotations, is.null)]
+
+# Helper function
+`%||%` <- function(x, y) if (is.null(x)) y else x
+plot.C.Notes.shared <- vars$plot_C_Notes_shared %||% ""
+```
+
+# Dynamic Report Test
+
+See [site](`r vars$bookmark_url`)
+
+## Testing Production Environment
+
+This test replicates your exact production setup to identify why Plot C fails.
+
+### Plot C Visualizations (Exact Production Code)
+
+```{r}
+print(plot_C_params)
+```
+
+```{r}
+#| echo: false
+
+# EXACT same code structure as your pdf_14.qmd
+tempfiles <- c()
+for (i in 1:plot_C_params$plot_C_n){
+plot_rep_num <- as.roman(1:10)[i]
+letter <- LETTERS[i]
+my_title = plot_C_annotations[[paste0("plot_C_annotation_", i, "_2")]]
+my_subtitle = plot_C_annotations[[paste0("plot_C_annotation_", i, "_3")]]
+my_pnl1_cap = plot_C_annotations[[paste0("plot_C_annotation_", i, "_4")]]  # Survival Plot 1
+my_pnl2_cap = plot_C_annotations[[paste0("plot_C_annotation_", i, "_5")]]  # Survival Plot 2
+final_caption = plot_C_annotations[[paste0("plot_C_annotation_", i, "_6")]]
+
+x_var <- (plot_C_params[grepl("^plot_C_x[0-9]", names(plot_C_params))])[[i]]
+
+base_theme <- theme_minimal(base_family = "HelveticaNeue-Light") +
+  theme(
+    plot.background = element_rect(fill = color_panel_bg, color = NA),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = "pt")),
+    panel.background = element_rect(fill = color_panel_bg, color = NA),
+    text = element_text(color = color_fg),
+    axis.text = element_text(color = color_fg),
+    axis.title = element_text(color = color_fg),
+    plot.title = element_text(face = "bold", color = color_primary)
+  )
+
+theme_border <- theme_void() + 
+  theme(
+    plot.title = element_text(size = 17, hjust = 0.5, face = "bold", family = "HelveticaNeue-Light"),
+    plot.subtitle = element_text(size = 15, hjust = 0.5, family = "HelveticaNeue-Light"),
+    plot.caption = element_text(size = 12, colour = "#C0C0C0", hjust = 0.9),
+    plot.tag = element_text(size = 17, face = "bold", color = "#cc4c02")
+  )
+
+# Get reference label
+ref_param_name <- paste0("plot_C_annotation_", i, "_1")
+fig.plot.C.ref <- plot_C_annotations[[ref_param_name]]
+
+if (is.null(fig.plot.C.ref) || fig.plot.C.ref == "") {
+  fig.plot.C.ref <- paste0("fig-C-", i)
+}
+
+fig.plot.C.ref <- gsub("^@", "", fig.plot.C.ref)
+
+# EXACT same glue content as your pdf_14.qmd
+rmd_content <- glue::glue("
+\```{r}
+#| label: <<fig.plot.C.ref>>
+#| fig-height: 6
+#| fig-width: 7
+#| echo: false
+
+
+# Create survival data (different seed for each plot)
+surv_data <- create_survival_data(n = 150, seed = 123 + i)
+
+# Create survival objects
+surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+surv_obj_stage <- survfit(Surv(time, event) ~ stage, data = surv_data)
+
+# Plot 1 - Survival by Treatment
+# Create the survplot and extract the ggplot object
+p1_survplot <- ggsurvplot(
+  surv_obj_treatment,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c(color_primary, color_secondary),
+  ggtheme = base_theme,
+  title = paste0('Survival by Treatment (', i, ')'),
+  xlab = 'Time (months)',
+  ylab = 'Survival Probability',
+  legend.title = 'Treatment',
+  legend.labs = c('Treatment A', 'Treatment B')
+)
+
+# Extract the ggplot object and add caption
+p1 <- p1_survplot$plot +
+  labs(caption = '<<my_pnl1_cap>>') +
+  theme(
+    plot.margin = unit(c(0.8, 0.1, 0.1, 1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  )
+
+# Plot 2 - Survival by Stage
+p2_survplot <- ggsurvplot(
+  surv_obj_stage,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c('#2E8B57', '#CD853F'),
+  ggtheme = base_theme,
+  title = paste0('Survival by Disease Stage (', i, ')'),
+  xlab = 'Time (months)',
+  ylab = 'Survival Probability',
+  legend.title = 'Stage',
+  legend.labs = c('Advanced', 'Early')
+)
+
+# Extract the ggplot object and add caption
+p2 <- p2_survplot$plot +
+  labs(caption = '<<my_pnl2_cap>>') +
+  theme(
+    plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  )
+
+# Combine with patchwork (now using extracted ggplot objects)
+p1 / p2 + 
+  plot_annotation(
+    title = '<<my_title>>',
+    subtitle = '<<my_subtitle>>',
+    caption = '<<final_caption>>',
+    tag_levels = '1',
+    tag_suffix = ')',
+    theme = theme_border
+  ) +
+  plot_layout(
+    heights = c(1, 1),  # Equal heights for both survival plots
+    guides = 'collect'
+  )
+
+
+\```
+
+<<plot.C.Notes.shared>>
+
+See @<<fig.plot.C.ref>>. 
+", .open = "<<", .close = ">>")
+
+# Create a temporary file with .Rmd extension
+temp_file <- tempfile(paste0("file_", i), fileext = ".qmd")
+tempfiles <- c(tempfiles, temp_file)
+
+# Write the content to the temporary file
+writeLines(rmd_content, temp_file)
+}
+```
+
+```{r, results='asis'}
+#| echo: false
+
+for (file in tempfiles) {
+  cat(knitr::knit_child(file, quiet = TRUE), sep = '\n')
+}
+```

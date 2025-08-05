@@ -1,0 +1,40 @@
+```{r}
+#| label: child-ggsurvplot-test
+#| fig-height: 6
+#| fig-width: 7
+#| echo: false
+
+cat("=== CHILD GGSURVPLOT: Starting ===\\n")
+
+# Create survival data
+surv_data <- create_survival_data(n = 150, seed = 125)
+surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+
+cat("=== CHILD GGSURVPLOT: Data created ===\\n")
+
+# This is the problematic approach
+p1_survplot <- ggsurvplot(
+  surv_obj_treatment,
+  data = surv_data,
+  conf.int = TRUE,
+  pval = TRUE,
+  risk.table = FALSE,
+  palette = c(color_primary, color_secondary),
+  ggtheme = base_theme,
+  title = "Child ggsurvplot (May Fail)",
+  xlab = "Time (months)",
+  ylab = "Survival Probability",
+  legend.title = "Treatment"
+)
+
+cat("=== CHILD GGSURVPLOT: ggsurvplot created ===\\n")
+
+# Extract and print
+p1 <- p1_survplot$plot + 
+  labs(caption = "Child ggsurvplot method") +
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+
+cat("=== CHILD GGSURVPLOT: About to print ===\\n")
+print(p1)
+cat("=== CHILD GGSURVPLOT: Print completed ===\\n")
+```

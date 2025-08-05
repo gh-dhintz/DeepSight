@@ -1,0 +1,95 @@
+```{r}
+#| label: fig-C-2
+#| fig-height: 6
+#| fig-width: 7
+#| echo: false
+
+message("CHILD PATCHWORK PURE: Starting")
+
+# Alternative approach using pure ggplot
+i <- 1
+surv_data <- create_survival_data(n = 150, seed = 123 + i)
+
+# Create survival objects
+surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+surv_obj_stage <- survfit(Surv(time, event) ~ stage, data = surv_data)
+
+message("CHILD PATCHWORK PURE: Survival objects created")
+
+# Convert to ggplot-friendly data frames
+surv_treatment_df <- convert_survfit_to_df(surv_obj_treatment, "treatment")
+surv_stage_df <- convert_survfit_to_df(surv_obj_stage, "stage")
+
+message("CHILD PATCHWORK PURE: Data frames converted")
+
+# Plot 1 - Pure ggplot survival by treatment
+p1_pure <- ggplot(surv_treatment_df, aes(x = time, y = surv, color = group)) +
+  geom_step(size = 1.2) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.2, color = NA) +
+  scale_color_manual(values = c("Treatment A" = color_primary, "Treatment B" = color_secondary)) +
+  scale_fill_manual(values = c("Treatment A" = color_primary, "Treatment B" = color_secondary)) +
+  base_theme +
+  labs(
+    title = paste0('Survival by Treatment (Pure - ', i, ')'),
+    x = 'Time (months)',
+    y = 'Survival Probability',
+    caption = paste(my_pnl1_cap, "(Pure ggplot)"),
+    color = 'Treatment',
+    fill = 'Treatment'
+  ) +
+  theme(
+    legend.position = "bottom",
+    plot.margin = unit(c(0.8, 0.1, 0.1, 1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+
+message("CHILD PATCHWORK PURE: p1_pure created")
+
+# Plot 2 - Pure ggplot survival by stage  
+p2_pure <- ggplot(surv_stage_df, aes(x = time, y = surv, color = group)) +
+  geom_step(size = 1.2) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.2, color = NA) +
+  scale_color_manual(values = c("Advanced" = "#2E8B57", "Early" = "#CD853F")) +
+  scale_fill_manual(values = c("Advanced" = "#2E8B57", "Early" = "#CD853F")) +
+  base_theme +
+  labs(
+    title = paste0('Survival by Disease Stage (Pure - ', i, ')'),
+    x = 'Time (months)',
+    y = 'Survival Probability',
+    caption = paste(my_pnl2_cap, "(Pure ggplot)"),
+    color = 'Stage',
+    fill = 'Stage'
+  ) +
+  theme(
+    legend.position = "bottom",
+    plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), 'cm'),
+    plot.caption = element_text(size = 11, margin = margin(t = 2, b = 2, unit = 'pt'))
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+
+message("CHILD PATCHWORK PURE: p2_pure created")
+
+# Combine with patchwork (pure ggplot objects)
+child_pure_combined <- p1_pure / p2_pure + 
+  plot_annotation(
+    title = paste(my_title, "(Pure ggplot)"),
+    subtitle = paste(my_subtitle, "(Alternative approach)"),
+    caption = paste(final_caption, "(Pure ggplot)"),
+    tag_levels = '1',
+    tag_suffix = ')',
+    theme = theme_border
+  ) +
+  plot_layout(
+    heights = c(1, 1),
+    guides = 'collect'
+  )
+
+message("CHILD PATCHWORK PURE: Patchwork combined, about to print")
+print(child_pure_combined)
+message("CHILD PATCHWORK PURE: Print completed")
+```
+
+Alternative notes shared text here.
+
+See @fig-C-2.

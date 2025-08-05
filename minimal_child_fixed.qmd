@@ -1,0 +1,11 @@
+```{r}
+#| label: minimal-child-plot
+
+child_plot <- ggplot(mtcars[1:5,], aes(x = mpg, y = hp)) +
+  geom_point(size = 4, color = "blue") +
+  labs(title = "Child Plot - Should Work")
+
+print(child_plot)
+```
+
+This is a minimal child document test.

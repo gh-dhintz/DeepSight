@@ -459,20 +459,22 @@ collect_plot_inputs <- function(input, plot_type, n_plots) {
     config <- PLOT_CONFIG[[plot_type]]
     if (config$has_annotations) {
       for (j in 1:config$num_annotations) {
-        ann_name <- paste0(plot_type, "_annotation_", i, "_", j)  # Changed: i=figure, j=panel
+        ann_name <- paste0(plot_type, "_annotation_", i, "_", j)  # i=figure, j=panel
         ann_value <- input[[ann_name]]
         
         # Get the label for this annotation position
         label <- config$display_labels[j]
         
-        # Provide defaults for different annotation types using new hierarchy
+        # IMPORTANT FIX: For Reference Label, we need to handle it differently
+        # Only provide defaults if the value is truly NULL, not just empty string
         if (label == "Reference Label") {
-          if (is.null(ann_value) || ann_value == "") {
-            # Generate default reference label using Plot hierarchy (A, B)
+          if (is.null(ann_value)) {
+            # Only provide default if truly NULL (not just empty string)
             plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
             default_ref <- paste0("fig-", plot_letter, "-", numerals[i])
             inputs[[ann_name]] <- default_ref
           } else {
+            # Keep whatever value is there, even if it's an empty string
             inputs[[ann_name]] <- ann_value
           }
         } else if (label == "Title") {
@@ -514,8 +516,8 @@ collect_plot_inputs <- function(input, plot_type, n_plots) {
             inputs[[ann_name]] <- ann_value
           }
         } else {
-          # For any other annotations, only add if not null and not empty
-          if (!is.null(ann_value) && ann_value != "") {
+          # For any other annotations, add the value regardless of whether it's empty
+          if (!is.null(ann_value)) {
             inputs[[ann_name]] <- ann_value
           }
         }
@@ -888,10 +890,17 @@ get_plot_values <- function(plot_type, i, input) {
   x_var <- input[[paste0(plot_type, "_x", i)]]
   
   # Helper to get annotation input or default
-  get_ann <- function(panel_pos, default = "") {  # Changed: renamed to panel_pos for clarity
-  val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]  # Changed: i=figure, panel_pos=panel
-  if (is.null(val) || val == "") default else val
-}
+  get_ann <- function(panel_pos, default = "") {
+    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
+    if (is.null(val) || val == "") default else val
+  }
+  
+  # Special helper for reference label to preserve empty strings
+  get_ref_label <- function(panel_pos) {
+    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
+    # Return the value as-is, even if it's an empty string
+    if (is.null(val)) "" else val
+  }
   
   # Common defaults using new hierarchy
   plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
@@ -902,31 +911,31 @@ get_plot_values <- function(plot_type, i, input) {
   if (plot_type == "plot_A") {
     list(
       x_var = x_var,
-      figRef = if (get_ann(1) != "") paste0("@", gsub("[^a-zA-Z0-9]", "", get_ann(1))) else default_ref,
+      # Use special handling for reference label
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),    # ← Panel hierarchy
-      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),   # ← Panel hierarchy
-      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),   # ← Panel hierarchy
+      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
       figOvCap = get_ann(7, default_figure)
     )
   } else if (plot_type == "plot_B") {
     list(
       x_var = x_var,
-      figRef = if (get_ann(1) != "") paste0("@", gsub("[^a-zA-Z0-9]", "", get_ann(1))) else default_ref,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),   # ← Panel hierarchy
-      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),   # ← Panel hierarchy
-      plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),   # ← Panel hierarchy
-      plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),   # ← Panel hierarchy
+      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
+      plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),
       figOvCap = get_ann(8, default_figure)
     )
-    } else if (plot_type == "plot_C") {
-    # UPDATED CASE FOR PLOT C (Survival Analysis)
+  } else if (plot_type == "plot_C") {
     list(
       x_var = x_var,
-      figRef = if (get_ann(1) != "") paste0("@", gsub("[^a-zA-Z0-9]", "", get_ann(1))) else default_ref,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
       plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
@@ -934,10 +943,9 @@ get_plot_values <- function(plot_type, i, input) {
       figOvCap = get_ann(6, default_figure) 
     )
   } else if (plot_type == "plot_D") {
-    # UPDATED CASE FOR PLOT D (Sankey/Treatment Pathways)
     list(
       x_var = x_var,
-      figRef = if (get_ann(1) != "") paste0("@", gsub("[^a-zA-Z0-9]", "", get_ann(1))) else default_ref,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
       figOvCap = get_ann(4, default_figure) 
@@ -2118,44 +2126,49 @@ server <- function(input, output, session) {
   #### Preload Reports with Configuration ####
   # ────────────────────────────────────────────────────────────────
   
-  # Function to parse URL parameters (keeping your original)
-  parseBookmarkURL <- function(url) {
-    if (is.null(url) || url == "" || !grepl("\\?", url)) {
-      return(list())
-    }
-    
-    query_string <- sub(".*\\?", "", url)
-    params <- strsplit(query_string, "&")[[1]]
-    param_list <- list()
-    
-    for (param in params) {
-      if (grepl("=", param)) {
-        parts <- strsplit(param, "=")[[1]]
-        if (length(parts) == 2) {
-          key <- URLdecode(parts[1])
-          value <- URLdecode(parts[2])
-          value <- gsub('^"|"$', '', value)
-          
-          if (grepl("^[0-9]+$", value)) {
-            value <- as.numeric(value)
-          }
-          
+# Update the parseBookmarkURL function to better handle empty strings
+parseBookmarkURL <- function(url) {
+  if (is.null(url) || url == "" || !grepl("\\?", url)) {
+    return(list())
+  }
+  
+  query_string <- sub(".*\\?", "", url)
+  params <- strsplit(query_string, "&")[[1]]
+  param_list <- list()
+  
+  for (param in params) {
+    if (grepl("=", param)) {
+      parts <- strsplit(param, "=")[[1]]
+      if (length(parts) == 2) {
+        key <- URLdecode(parts[1])
+        value <- URLdecode(parts[2])
+        value <- gsub('^"|"$', '', value)
+        
+        # Special handling for empty strings - they come as %22%22 in URLs
+        if (value == "" || value == '""') {
+          param_list[[key]] <- ""
+        } else if (grepl("^[0-9]+$", value)) {
+          value <- as.numeric(value)
+          param_list[[key]] <- value
+        } else {
           param_list[[key]] <- value
         }
       }
     }
-    
-    return(param_list)
   }
   
-  # Simplified preload function using configuration
-  # Fixed loadPresetReport function that allows editing after loading
-# Simpler approach: Store preset data and apply when UI is ready
+  return(param_list)
+}
+# Also update the loadPresetReport function to ensure proper URL handling
 loadPresetReport <- function(preset_url) {
   parsed <- parseBookmarkURL(preset_url)
   extracted <- extractReportParams(parsed)
   
   if (length(extracted) > 0) {
+    # Clear any existing preset data first
+    pending_preset_data(NULL)
+    preset_loading_stage("idle")
+    
     # Update metadata inputs first
     metadata_updates <- list(
       list(name = "title", value = extracted$title),
@@ -2182,49 +2195,81 @@ loadPresetReport <- function(preset_url) {
   }
 }
 
-# Add this reactive value to your server function (put it near the top with other reactive values)
-pending_preset_data <- reactiveVal(NULL)
+pending_preset_data <- reactiveVal(NULL)  
+# Add a reactive value to track preset loading stage
+preset_loading_stage <- reactiveVal("idle")  # Add this with your other reactive values
 
-# Add this observer to your server function (put it with other observers)
-# This observer watches for UI changes and applies preset data when UI is ready
+# Replace the existing observe block with this improved version
 observe({
   preset_data <- pending_preset_data()
   
-  if (!is.null(preset_data)) {
+  if (!is.null(preset_data) && preset_loading_stage() == "idle") {
+    # Mark that we're starting to load
+    preset_loading_stage("loading")
+    
+    # First, ensure all plot numbers are set correctly
+    for (plot_type in names(PLOT_CONFIG)) {
+      n_param <- paste0(plot_type, "_n")
+      if (n_param %in% names(preset_data) && !is.na(preset_data[[n_param]])) {
+        # Check if the numeric input exists and has a different value
+        current_n <- input[[n_param]]
+        preset_n <- preset_data[[n_param]]
+        
+        if (is.null(current_n) || current_n != preset_n) {
+          updateNumericInput(session, n_param, value = preset_n)
+        }
+      }
+    }
+    
+    # Wait for UI to update
+    preset_loading_stage("numbers_updated")
+    invalidateLater(200, session)
+  }
+})
+
+# Second observer to load the actual data
+observe({
+  preset_data <- pending_preset_data()
+  
+  if (!is.null(preset_data) && preset_loading_stage() == "numbers_updated") {
+    # Add a flag to track which plot types have been processed
+    processed_plots <- character()
+    all_ready <- TRUE
+    
     # Try to apply preset data for each plot type
     for (plot_type in names(PLOT_CONFIG)) {
       config <- PLOT_CONFIG[[plot_type]]
-      n_plots <- input[[paste0(plot_type, "_n")]]
+      n_plots <- preset_data[[paste0(plot_type, "_n")]]  # Use preset data, not current input
       
       if (!is.null(n_plots) && n_plots > 0) {
-        # Check if UI is ready for this plot type by checking if first input exists
-        first_x_param <- paste0(plot_type, "_x1")
+        # Check if UI is ready for ALL plots of this type
+        all_ui_ready <- TRUE
+        for (i in 1:n_plots) {
+          x_param <- paste0(plot_type, "_x", i)
+          if (is.null(input[[x_param]])) {
+            all_ui_ready <- FALSE
+            all_ready <- FALSE
+            break
+          }
+        }
         
-        if (!is.null(input[[first_x_param]])) {
+        if (all_ui_ready) {
           # UI is ready, apply preset data for this plot type
           for (i in 1:n_plots) {
             # Update X variables
             x_param <- paste0(plot_type, "_x", i)
             if (x_param %in% names(preset_data) && !is.na(preset_data[[x_param]])) {
-              current_value <- input[[x_param]]
-              preset_value <- preset_data[[x_param]]
-              # Only update if current value is different from preset value
-              if (is.null(current_value) || current_value != preset_value) {
-                updateSelectInput(session, x_param, selected = preset_value)
-              }
+              updateSelectInput(session, x_param, selected = preset_data[[x_param]])
             }
             
             # Update annotation inputs if this plot type has them
             if (config$has_annotations) {
               for (j in 1:config$num_annotations) {
-                ann_param <- paste0(plot_type, "_annotation_", j, "_", i)
+                # The parameter naming in the preset data needs to be checked
+                ann_param <- paste0(plot_type, "_annotation_", i, "_", j)
+                
                 if (ann_param %in% names(preset_data) && !is.na(preset_data[[ann_param]])) {
-                  current_value <- input[[ann_param]]
-                  preset_value <- preset_data[[ann_param]]
-                  # Only update if current value is different from preset value
-                  if (is.null(current_value) || current_value != preset_value) {
-                    updateTextInput(session, ann_param, value = preset_value)
-                  }
+                  updateTextInput(session, ann_param, value = preset_data[[ann_param]])
                 }
               }
             }
@@ -2233,51 +2278,46 @@ observe({
           # Update shared notes
           notes_param <- paste0(plot_type, "_Notes_shared")
           if (notes_param %in% names(preset_data) && !is.na(preset_data[[notes_param]])) {
-            current_value <- input[[notes_param]]
-            preset_value <- preset_data[[notes_param]]
-            # Only update if current value is different from preset value
-            if (is.null(current_value) || current_value != preset_value) {
-              updateTextAreaInput(session, notes_param, value = preset_value)
-            }
+            updateTextAreaInput(session, notes_param, value = preset_data[[notes_param]])
           }
+          
+          # Mark this plot type as processed
+          processed_plots <- c(processed_plots, plot_type)
         }
+      } else {
+        # If n_plots is 0 or NULL, still mark as processed
+        processed_plots <- c(processed_plots, plot_type)
       }
     }
     
     # Check if all plot types have been processed
-    all_processed <- TRUE
-    for (plot_type in names(PLOT_CONFIG)) {
-      n_plots <- input[[paste0(plot_type, "_n")]]
-      if (!is.null(n_plots) && n_plots > 0) {
-        first_x_param <- paste0(plot_type, "_x1")
-        if (is.null(input[[first_x_param]])) {
-          all_processed <- FALSE
-          break
-        }
-      }
-    }
-    
-    # If all plot types have been processed, clear the pending data
-    if (all_processed) {
+    if (length(processed_plots) == length(PLOT_CONFIG)) {
+      # All plot types have been processed, clear the pending data
       pending_preset_data(NULL)
+      preset_loading_stage("idle")
+    } else if (!all_ready) {
+      # Not all ready yet, try again after a delay
+      invalidateLater(200, session)
     }
   }
 })
+
+# Updated preset URLs that include data for all plot types
+observeEvent(input$load_basic_report, {
+  # This URL now includes Plot C and D data
+  preset_url <- "http://127.0.0.1:3605/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=1&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%224%22&plot_A_Notes_shared=%22g%22&plot_A_annotation_1_1=%22fig-AA-1%22&plot_A_annotation_1_2=%22a%22&plot_A_annotation_1_3=%22b%22&plot_A_annotation_1_4=%22c%22&plot_A_annotation_1_5=%22d%22&plot_A_annotation_1_6=%22e%22&plot_A_annotation_1_7=%22f%22&plot_B_x1=%224%22&plot_B_Notes_shared=%22hh%22&plot_B_annotation_1_1=%22fig-BB-1%22&plot_B_annotation_1_2=%22aa%22&plot_B_annotation_1_3=%22bb%22&plot_B_annotation_1_4=%22cc%22&plot_B_annotation_1_5=%22dd%22&plot_B_annotation_1_6=%22ee%22&plot_B_annotation_1_7=%22ff%22&plot_B_annotation_1_8=%22gg%22&plot_C_x1=%224%22&plot_C_Notes_shared=%22fff%22&plot_C_annotation_1_1=%22fig-CC-1%22&plot_C_annotation_1_2=%22aaa%22&plot_C_annotation_1_3=%22bbb%22&plot_C_annotation_1_4=%22ccc%22&plot_C_annotation_1_5=%22ddd%22&plot_C_annotation_1_6=%22eee%22&plot_D_x1=%224%22&plot_D_Notes_shared=%22dddd%22&plot_D_annotation_1_1=%22fig-DD-1%22&plot_D_annotation_1_2=%22aaaa%22&plot_D_annotation_1_3=%22bbbb%22&plot_D_annotation_1_4=%22cccc%22"
   
-  # Preload report observers (keeping your original button IDs)
-  observeEvent(input$load_basic_report, {
-    preset_url <- "http://127.0.0.1:6680/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Selection%20(A)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=2&plot_B_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22Treatment%20Selection%20Analysis%22&subtitle=%22Comprehensive%20Treatment%20Evaluation%22&name=%22Research%20Team%22&plot_A_x1=3&plot_A_x2=4&plot_B_x1=3&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_2_1=%22Plot%20A.I%22&plot_A_annotation_3_1=%22Figure%20I%20Analysis%22&plot_A_annotation_4_1=%22Panel%20A.I.1%22&plot_A_annotation_5_1=%22Panel%20A.I.2%22&plot_A_annotation_6_1=%22Panel%20A.I.3%22&plot_A_annotation_7_1=%22Figure%20A.I%22&plot_A_annotation_1_2=%22fig-A-2%22&plot_A_annotation_2_2=%22Plot%20A.II%22&plot_A_annotation_3_2=%22Figure%20II%20Analysis%22&plot_A_annotation_4_2=%22Panel%20A.II.1%22&plot_A_annotation_5_2=%22Panel%20A.II.2%22&plot_A_annotation_6_2=%22Panel%20A.II.3%22&plot_A_annotation_7_2=%22Figure%20A.II%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_2_1=%22Plot%20B.I%22&plot_B_annotation_3_1=%22Figure%20I%20Analysis%22&plot_B_annotation_4_1=%22Panel%20B.I.1%22&plot_B_annotation_5_1=%22Panel%20B.I.2%22&plot_B_annotation_6_1=%22Panel%20B.I.3%22&plot_B_annotation_7_1=%22Panel%20B.I.4%22&plot_B_annotation_8_1=%22Figure%20B.I%22&plot_A_Notes_shared=%22These%20figures%20show%20comprehensive%20treatment%20selection%20analysis.%20See%20@fig-A-1%20and%20@fig-A-2%20for%20detailed%20results.%22&plot_B_Notes_shared=%22This%20analysis%20covers%20the%20complete%20ESR1%20diagnostic%20landscape.%20See%20@fig-B-1%20for%20comprehensive%20results.%22"
+  loadPresetReport(preset_url)
+  safe_showNotification("Basic Report configuration loaded successfully!", type = "default")
+})
+
+observeEvent(input$load_basic_report_two, {
+  # This URL now includes Plot C and D data with different values
+  preset_url <- "http://127.0.0.1:6680/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Selection%20(A)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=2&plot_B_n=1&plot_C_n=1&plot_D_n=2&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22Alternative%20Treatment%20Analysis%22&subtitle=%22Secondary%20Evaluation%20Report%22&name=%22Clinical%20Research%20Team%22&plot_A_x1=4&plot_A_x2=5&plot_B_x1=4&plot_C_x1=5&plot_D_x1=4&plot_D_x2=5&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_2_1=%22Treatment%20Group%20A.I%22&plot_A_annotation_3_1=%22Primary%20Analysis%22&plot_A_annotation_4_1=%22Table%20A.I.1%22&plot_A_annotation_5_1=%22Distribution%20A.I.2%22&plot_A_annotation_6_1=%22Comparison%20A.I.3%22&plot_A_annotation_7_1=%22Complete%20Figure%20A.I%22&plot_A_annotation_1_2=%22fig-A-2%22&plot_A_annotation_2_2=%22Treatment%20Group%20A.II%22&plot_A_annotation_3_2=%22Secondary%20Analysis%22&plot_A_annotation_4_2=%22Table%20A.II.1%22&plot_A_annotation_5_2=%22Distribution%20A.II.2%22&plot_A_annotation_6_2=%22Comparison%20A.II.3%22&plot_A_annotation_7_2=%22Complete%20Figure%20A.II%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_2_1=%22ESR1%20Mutations%22&plot_B_annotation_3_1=%22Molecular%20Landscape%22&plot_B_annotation_4_1=%22Expression%20Levels%22&plot_B_annotation_5_1=%22Mutation%20Frequency%22&plot_B_annotation_6_1=%22Response%20Correlation%22&plot_B_annotation_7_1=%22Diagnostic%20Accuracy%22&plot_B_annotation_8_1=%22ESR1%20Complete%20Analysis%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_2_1=%22Long-term%20Survival%22&plot_C_annotation_3_1=%2210-Year%20Follow-up%22&plot_C_annotation_4_1=%22Treatment%20Efficacy%22&plot_C_annotation_5_1=%22Disease%20Progression%22&plot_C_annotation_6_1=%22Survival%20Outcomes%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_2_1=%22Initial%20Treatment%20Flow%22&plot_D_annotation_3_1=%22First-line%20Therapy%22&plot_D_annotation_4_1=%22Treatment%20Initiation%22&plot_D_annotation_1_2=%22fig-D-2%22&plot_D_annotation_2_2=%22Second-line%20Treatment%20Flow%22&plot_D_annotation_3_2=%22Subsequent%20Therapies%22&plot_D_annotation_4_2=%22Treatment%20Progression%22&plot_A_Notes_shared=%22Alternative%20treatment%20approaches%20show%20different%20efficacy%20profiles.%20See%20@fig-A-1%20and%20@fig-A-2%20for%20comparative%20analysis.%22&plot_B_Notes_shared=%22ESR1%20mutation%20landscape%20reveals%20therapeutic%20opportunities.%20See%20@fig-B-1%20for%20molecular%20profiling%20results.%22&plot_C_Notes_shared=%22Long-term%20survival%20data%20supports%20treatment%20recommendations.%20See%20@fig-C-1%20for%20survival%20curves.%22&plot_D_Notes_shared=%22Treatment%20pathways%20demonstrate%20sequential%20therapy%20patterns.%20See%20@fig-D-1%20and%20@fig-D-2%20for%20flow%20diagrams.%22"
   
-    loadPresetReport(preset_url)
-    safe_showNotification("Basic Report configuration loaded successfully!", type = "default")
-  })
-  
-  observeEvent(input$load_basic_report_two, {
-    preset_url <- "http://127.0.0.1:6680/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Selection%20(A)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=2&plot_B_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22Treatment%20Selection%20Analysis%22&subtitle=%22Comprehensive%20Treatment%20Evaluation%22&name=%22Research%20Team%22&plot_A_x1=3&plot_A_x2=4&plot_B_x1=3&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_2_1=%22Plot%20A.I%22&plot_A_annotation_3_1=%22Figure%20I%20Analysis%22&plot_A_annotation_4_1=%22Panel%20A.I.1%22&plot_A_annotation_5_1=%22Panel%20A.I.2%22&plot_A_annotation_6_1=%22Panel%20A.I.3%22&plot_A_annotation_7_1=%22Figure%20A.I%22&plot_A_annotation_1_2=%22fig-A-2%22&plot_A_annotation_2_2=%22Plot%20A.II%22&plot_A_annotation_3_2=%22Figure%20II%20Analysis%22&plot_A_annotation_4_2=%22Panel%20A.II.1%22&plot_A_annotation_5_2=%22Panel%20A.II.2%22&plot_A_annotation_6_2=%22Panel%20A.II.3%22&plot_A_annotation_7_2=%22Figure%20A.II%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_2_1=%22Plot%20B.I%22&plot_B_annotation_3_1=%22Figure%20I%20Analysis%22&plot_B_annotation_4_1=%22Panel%20B.I.1%22&plot_B_annotation_5_1=%22Panel%20B.I.2%22&plot_B_annotation_6_1=%22Panel%20B.I.3%22&plot_B_annotation_7_1=%22Panel%20B.I.4%22&plot_B_annotation_8_1=%22Figure%20B.I%22&plot_A_Notes_shared=%22These%20figures%20show%20comprehensive%20treatment%20selection%20analysis.%20See%20@fig-A-1%20and%20@fig-A-2%20for%20detailed%20results.%22&plot_B_Notes_shared=%22This%20analysis%20covers%20the%20complete%20ESR1%20diagnostic%20landscape.%20See%20@fig-B-1%20for%20comprehensive%20results.%22"
-  
-    loadPresetReport(preset_url)
-    safe_showNotification("Basic Report Two configuration loaded successfully!", type = "default")
-  })
+  loadPresetReport(preset_url)
+  safe_showNotification("Basic Report Two configuration loaded successfully!", type = "default")
+})
 
   # ────────────────────────────────────────────────────────────────
   #### Download Handler with Configuration ####
@@ -2678,46 +2718,26 @@ observe({
     safe_showNotification("Report 2 parameters loaded successfully!", type = "default")
   })
   
-  # Function to load parameters from comparison
-  loadPresetReport_fromParams <- function(params) {
-    if (length(params) > 0) {
-      # Update metadata inputs
-      if (!is.na(params$title)) updateTextInput(session, "title", value = params$title)
-      if (!is.na(params$subtitle)) updateTextInput(session, "subtitle", value = params$subtitle)
-      if (!is.na(params$name)) updateTextInput(session, "name", value = params$name)
-      
-      # Update plot numbers for all configured plot types
-      for (plot_type in names(PLOT_CONFIG)) {
-        n_param <- paste0(plot_type, "_n")
-        if (!is.na(params[[n_param]])) {
-          updateNumericInput(session, n_param, value = params[[n_param]])
-        }
+  # Fixed function to load parameters from comparison
+loadPresetReport_fromParams <- function(params) {
+  if (length(params) > 0) {
+    # Update metadata inputs
+    if (!is.na(params$title)) updateTextInput(session, "title", value = params$title)
+    if (!is.na(params$subtitle)) updateTextInput(session, "subtitle", value = params$subtitle)
+    if (!is.na(params$name)) updateTextInput(session, "name", value = params$name)
+    
+    # Update plot numbers for all configured plot types
+    for (plot_type in names(PLOT_CONFIG)) {
+      n_param <- paste0(plot_type, "_n")
+      if (!is.na(params[[n_param]])) {
+        updateNumericInput(session, n_param, value = params[[n_param]])
       }
-      
-      invalidateLater(500, session)
-      
-      observe({
-        # Update inputs for all configured plot types
-        for (plot_type in names(PLOT_CONFIG)) {
-          # Update X variables
-          x_pattern <- paste0("^", plot_type, "_x")
-          x_params <- params[grepl(x_pattern, names(params))]
-          for (param_name in names(x_params)) {
-            if (!is.na(x_params[[param_name]])) {
-              updateSelectInput(session, param_name, selected = x_params[[param_name]])
-            }
-          }
-          
-          # Update shared notes
-          notes_param <- paste0(plot_type, "_Notes_shared")
-          if (!is.na(params[[notes_param]])) {
-            updateTextAreaInput(session, notes_param, value = params[[notes_param]])
-          }
-        }
-      })
     }
+    
+    # Store params for later application when UI is ready
+    pending_preset_data(params)
   }
-
+}
   # Generate comparison table
   output$comparisonTable <- renderTable({
     params1 <- report1_params()

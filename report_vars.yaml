@@ -5,7 +5,7 @@ params:
 vars:
   nav: Report Export
   plots_subtabs: Treatment Pathways (D)
-  load_basic_report: 0
+  load_basic_report: 2
   load_basic_report_two: 0
   update_and_copy_url: 0
   download_trigger: 1
@@ -24,40 +24,42 @@ vars:
   bookmark_url_1: ''
   bookmark_url_2: ''
   plot_A_x1: '4'
-  plot_A_annotation_1_1: fig-A-1
-  plot_A_annotation_1_2: Plot A.I
-  plot_A_annotation_1_3: Figure I Analysis
-  plot_A_annotation_1_4: Panel A.I.1
-  plot_A_annotation_1_5: Panel A.I.2
-  plot_A_annotation_1_6: Panel A.I.3
-  plot_A_annotation_1_7: Figure A.I
-  plot_A_Notes_shared: ''
+  plot_A_annotation_1_1: fig-AA-1
+  plot_A_annotation_1_2: a
+  plot_A_annotation_1_3: b
+  plot_A_annotation_1_4: c
+  plot_A_annotation_1_5: d
+  plot_A_annotation_1_6: e
+  plot_A_annotation_1_7: f
+  plot_A_Notes_shared: g
   plot_B_x1: '4'
-  plot_B_annotation_1_1: fig-B-1
-  plot_B_annotation_1_2: Plot B.I
-  plot_B_annotation_1_3: Figure I Analysis
-  plot_B_annotation_1_4: Panel B.I.1
-  plot_B_annotation_1_5: Panel B.I.2
-  plot_B_annotation_1_6: Panel B.I.3
-  plot_B_annotation_1_7: Panel B.I.4
-  plot_B_annotation_1_8: Figure B.I
-  plot_B_Notes_shared: ''
+  plot_B_annotation_1_1: fig-BB-1
+  plot_B_annotation_1_2: aa
+  plot_B_annotation_1_3: bb
+  plot_B_annotation_1_4: cc
+  plot_B_annotation_1_5: dd
+  plot_B_annotation_1_6: ee
+  plot_B_annotation_1_7: ff
+  plot_B_annotation_1_8: gg
+  plot_B_Notes_shared: hh
   plot_C_x1: '4'
-  plot_C_annotation_1_1: fig-C-1
-  plot_C_annotation_1_2: Plot C.I
-  plot_C_annotation_1_3: Figure I Analysis
-  plot_C_annotation_1_6: Figure C.I
-  plot_C_Notes_shared: ''
+  plot_C_annotation_1_1: fig-CC-1
+  plot_C_annotation_1_2: aaa
+  plot_C_annotation_1_3: bbb
+  plot_C_annotation_1_4: ccc
+  plot_C_annotation_1_5: ddd
+  plot_C_annotation_1_6: eee
+  plot_C_Notes_shared: fff
   plot_D_x1: '4'
-  plot_D_annotation_1_1: fig-D-1
-  plot_D_annotation_1_2: Plot D.I
-  plot_D_annotation_1_3: Figure I Analysis
-  plot_D_annotation_1_4: Figure D.I
-  plot_D_Notes_shared: ''
+  plot_D_annotation_1_1: fig-DD-1
+  plot_D_annotation_1_2: aaaa
+  plot_D_annotation_1_3: bbbb
+  plot_D_annotation_1_4: cccc
+  plot_D_Notes_shared: dddd
   plot_A_caption_shared: ''
   plot_B_caption_shared: ''
   plot_C_caption_shared: ''
   plot_D_caption_shared: ''
-  bookmark_url: http://127.0.0.1:4794/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=1&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%224%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22%22&plot_A_annotation_1_2=%22%22&plot_A_annotation_1_3=%22%22&plot_A_annotation_1_4=%22%22&plot_A_annotation_1_5=%22%22&plot_A_annotation_1_6=%22%22&plot_A_annotation_1_7=%22%22&plot_B_x1=%224%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22%22&plot_B_annotation_1_2=%22%22&plot_B_annotation_1_3=%22%22&plot_B_annotation_1_4=%22%22&plot_B_annotation_1_5=%22%22&plot_B_annotation_1_6=%22%22&plot_B_annotation_1_7=%22%22&plot_B_annotation_1_8=%22%22&plot_C_x1=%224%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22%22&plot_C_annotation_1_2=%22%22&plot_C_annotation_1_3=%22%22&plot_C_annotation_1_4=%22%22&plot_C_annotation_1_5=%22%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%224%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22%22&plot_D_annotation_1_2=%22%22&plot_D_annotation_1_3=%22%22&plot_D_annotation_1_4=%22%22
-  generated_at: 1.7542552e+09
+  bookmark_url: http://127.0.0.1:3605/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=2&load_basic_report_two=0&update_and_copy_url=0&download_trigger=1&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%224%22&plot_A_Notes_shared=%22g%22&plot_A_annotation_1_1=%22fig-AA-1%22&plot_A_annotation_1_2=%22a%22&plot_A_annotation_1_3=%22b%22&plot_A_annotation_1_4=%22c%22&plot_A_annotation_1_5=%22d%22&plot_A_annotation_1_6=%22e%22&plot_A_annotation_1_7=%22f%22&plot_B_x1=%224%22&plot_B_Notes_shared=%22hh%22&plot_B_annotation_1_1=%22fig-BB-1%22&plot_B_annotation_1_2=%22aa%22&plot_B_annotation_1_3=%22bb%22&plot_B_annotation_1_4=%22cc%22&plot_B_annotation_1_5=%22dd%22&plot_B_annotation_1_6=%22ee%22&plot_B_annotation_1_7=%22ff%22&plot_B_annotation_1_8=%22gg%22&plot_C_x1=%224%22&plot_C_Notes_shared=%22fff%22&plot_C_annotation_1_1=%22fig-CC-1%22&plot_C_annotation_1_2=%22aaa%22&plot_C_annotation_1_3=%22bbb%22&plot_C_annotation_1_4=%22ccc%22&plot_C_annotation_1_5=%22ddd%22&plot_C_annotation_1_6=%22eee%22&plot_D_x1=%224%22&plot_D_Notes_shared=%22dddd%22&plot_D_annotation_1_1=%22fig-DD-1%22&plot_D_annotation_1_2=%22aaaa%22&plot_D_annotation_1_3=%22bbbb%22&plot_D_annotation_1_4=%22cccc%22
+  generated_at: 1.7543461e+09
 
