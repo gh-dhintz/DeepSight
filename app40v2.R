@@ -19,6 +19,7 @@ library(htmlwidgets)   # For saving interactive plots
 library(webshot)       # For converting HTML widgets to images
 library(tidyr)         # For data manipulation
 library(stringr)       # For string operations
+library(plotly) 
 
 # ──────────────────────────────────────────────────────────────────
 #### Create Fake Breast Cancer Dataset ####
@@ -199,74 +200,181 @@ create_survival_data <- function(n = 100, seed = 123, cohort_filter = NULL) {
 }
 
 create_sankey_data <- function(cohort_filter = NULL) {
-  # Define nodes (treatment pathway steps)
+  # Define nodes for the treatment pathway
   nodes <- data.frame(
     name = c(
-      # Initial diagnosis
+      # 0: Initial diagnosis
       "ESR1+ Diagnosis",
-      # First-line treatments
+      # 1-3: First-line treatments
       "Endocrine + CDK4/6", "Chemotherapy", "Targeted Therapy",
-      # Outcomes
+      # 4-6: First outcomes
       "Complete Response", "Partial Response", "Progressive Disease",
-      # Second-line treatments
-      "Elacestrant", "Clinical Trial", "Palliative Care"
+      # 7-9: Second-line treatments
+      "Elacestrant", "Clinical Trial", "Palliative Care",
+      # 10-12: Final outcomes
+      "Stable Disease", "Disease Progression", "Long-term Response"
     ),
     stringsAsFactors = FALSE
   )
   
-  # Define links with values that vary by cohort
+  # Define cohort-specific flow values
   if (!is.null(cohort_filter)) {
-    # Cohort-specific flow values
     link_values <- switch(cohort_filter,
-      "HR+/HER2" = c(50, 25, 25,          # Initial distribution
-                      25, 20, 5,           # Endocrine outcomes
-                      8, 12, 5,            # Chemo outcomes
-                      18, 5, 2,            # Targeted outcomes
-                      7, 4, 6),            # Second-line distribution
+      "HR+/HER2" = list(
+        first_line = c(50, 25, 25),          # To first-line treatments
+        endo_outcomes = c(25, 20, 5),        # Endocrine outcomes
+        chemo_outcomes = c(8, 12, 5),        # Chemo outcomes
+        targeted_outcomes = c(18, 5, 2),     # Targeted outcomes
+        second_line_pd = c(4, 3, 5),         # PD to second-line
+        second_line_pr = c(2, 1, 2),         # PR to second-line
+        elacestrant_final = c(2, 1, 1),     # Elacestrant final
+        trial_final = c(1, 1, 1),            # Trial final
+        palliative_final = c(3, 2, 2)       # Palliative final
+      ),
       
-      "HR+/HER2_wESR1" = c(40, 35, 25,    # Initial distribution
-                           15, 20, 5,      # Endocrine outcomes
-                           12, 18, 5,      # Chemo outcomes
-                           12, 10, 3,      # Targeted outcomes
-                           10, 6, 9),      # Second-line distribution
+      "HR+/HER2_wESR1" = list(
+        first_line = c(40, 35, 25),
+        endo_outcomes = c(15, 20, 5),
+        chemo_outcomes = c(12, 18, 5),
+        targeted_outcomes = c(12, 10, 3),
+        second_line_pd = c(5, 4, 6),
+        second_line_pr = c(3, 2, 3),
+        elacestrant_final = c(3, 2, 2),
+        trial_final = c(2, 1, 1),
+        palliative_final = c(4, 3, 3)
+      ),
       
-      "HR+/HER2_wco_PIK3CA_PTEN_AKT" = c(35, 40, 25,  # Initial distribution
-                                          10, 20, 5,    # Endocrine outcomes
-                                          15, 20, 5,    # Chemo outcomes
-                                          10, 12, 3,    # Targeted outcomes
-                                          12, 8, 10),   # Second-line distribution
+      "HR+/HER2_wco_PIK3CA_PTEN_AKT" = list(
+        first_line = c(35, 40, 25),
+        endo_outcomes = c(10, 20, 5),
+        chemo_outcomes = c(15, 20, 5),
+        targeted_outcomes = c(10, 12, 3),
+        second_line_pd = c(6, 5, 7),
+        second_line_pr = c(4, 3, 3),
+        elacestrant_final = c(4, 3, 3),
+        trial_final = c(3, 2, 2),
+        palliative_final = c(5, 4, 4)
+      ),
       
-      "ESR1 alone" = c(45, 30, 25,        # Initial distribution
-                       20, 20, 5,          # Endocrine outcomes
-                       10, 15, 5,          # Chemo outcomes
-                       15, 8, 2,           # Targeted outcomes
-                       8, 5, 7),           # Second-line distribution
+      "ESR1 alone" = list(
+        first_line = c(45, 30, 25),
+        endo_outcomes = c(20, 20, 5),
+        chemo_outcomes = c(10, 15, 5),
+        targeted_outcomes = c(15, 8, 2),
+        second_line_pd = c(4, 3, 4),
+        second_line_pr = c(2, 2, 2),
+        elacestrant_final = c(2, 1, 1),
+        trial_final = c(1, 1, 1),
+        palliative_final = c(2, 2, 2)
+      ),
       
       # Default values
-      c(45, 30, 25, 20, 20, 5, 10, 15, 5, 15, 8, 2, 8, 5, 7)
+      list(
+        first_line = c(45, 30, 25),
+        endo_outcomes = c(20, 20, 5),
+        chemo_outcomes = c(10, 15, 5),
+        targeted_outcomes = c(15, 8, 2),
+        second_line_pd = c(4, 3, 4),
+        second_line_pr = c(2, 2, 2),
+        elacestrant_final = c(2, 1, 1),
+        trial_final = c(1, 1, 1),
+        palliative_final = c(2, 2, 2)
+      )
     )
   } else {
-    # Original default values
-    link_values <- c(45, 30, 25, 20, 20, 5, 10, 15, 5, 15, 8, 2, 8, 5, 7)
+    # Default values when no cohort specified
+    link_values <- list(
+      first_line = c(45, 30, 25),
+      endo_outcomes = c(20, 20, 5),
+      chemo_outcomes = c(10, 15, 5),
+      targeted_outcomes = c(15, 8, 2),
+      second_line_pd = c(4, 3, 4),
+      second_line_pr = c(2, 2, 2),
+      elacestrant_final = c(2, 1, 1),
+      trial_final = c(1, 1, 1),
+      palliative_final = c(2, 2, 2)
+    )
   }
   
-  # Define links (patient flow between treatments)
+  # Build links from the cohort-specific values
   links <- data.frame(
-    source = c(0, 0, 0,           # Initial diagnosis to first-line
-               1, 1, 1,           # Endocrine outcomes
-               2, 2, 2,           # Chemo outcomes
-               3, 3, 3,           # Targeted outcomes
-               6, 6, 6),          # Progressive disease to second-line
-    target = c(1, 2, 3,           # To first-line treatments
-               4, 5, 6,           # To outcomes
-               4, 5, 6,           # To outcomes
-               4, 5, 6,           # To outcomes
-               7, 8, 9),          # To second-line treatments
-    value = link_values
+    source = c(
+      # From diagnosis to first-line treatments
+      0, 0, 0,
+      # From Endocrine to outcomes
+      1, 1, 1,
+      # From Chemo to outcomes
+      2, 2, 2,
+      # From Targeted to outcomes
+      3, 3, 3,
+      # From Progressive Disease to second-line
+      6, 6, 6,
+      # From Partial Response to second-line
+      5, 5, 5,
+      # From Elacestrant to final outcomes
+      7, 7, 7,
+      # From Clinical Trial to final outcomes
+      8, 8, 8,
+      # From Palliative Care to final outcomes
+      9, 9, 9
+    ),
+    target = c(
+      # To first-line treatments
+      1, 2, 3,
+      # To first outcomes
+      4, 5, 6,
+      4, 5, 6,
+      4, 5, 6,
+      # To second-line treatments
+      7, 8, 9,
+      7, 8, 9,
+      # To final outcomes
+      10, 11, 12,
+      10, 11, 12,
+      10, 11, 12
+    ),
+    value = c(
+      link_values$first_line,
+      link_values$endo_outcomes,
+      link_values$chemo_outcomes,
+      link_values$targeted_outcomes,
+      link_values$second_line_pd,
+      link_values$second_line_pr,
+      link_values$elacestrant_final,
+      link_values$trial_final,
+      link_values$palliative_final
+    ),
+    stringsAsFactors = FALSE
   )
   
-  list(nodes = nodes, links = links, cohort = cohort_filter)
+  # Add labels to links
+  links$label <- paste0(links$value, " patients")
+  
+  # Define colors for nodes
+  node_colors <- c(
+    "#8B0000",     # Diagnosis - Dark red
+    "#4682B4",     # Endocrine - Steel blue
+    "#FF6347",     # Chemo - Tomato
+    "#32CD32",     # Targeted - Lime green
+    "#228B22",     # Complete Response - Forest green
+    "#FFA500",     # Partial Response - Orange
+    "#DC143C",     # Progressive Disease - Crimson
+    "#9370DB",     # Elacestrant - Medium purple
+    "#20B2AA",     # Clinical Trial - Light sea green
+    "#708090",     # Palliative - Slate gray
+    "#3CB371",     # Stable Disease - Medium sea green
+    "#FF4500",     # Disease Progression - Orange red
+    "#00CED1"      # Long-term Response - Dark turquoise
+  )
+  
+  return(list(
+    nodes = nodes,
+    links = links,
+    node_colors = node_colors,
+    cohort = cohort_filter
+  ))
 }
+
 # ────────────────────────────────────────────────────────────────
 #### Central Configuration Object (MOVE THIS TO THE TOP) ####
 # ────────────────────────────────────────────────────────────────
@@ -477,7 +585,7 @@ create_shared_inputs_config <- function(plot_type, input_values, config) {
 # ────────────────────────────────────────────────────────────────
 
 # Generate UI render functions for all plot types
-generate_ui_renders <- function() {
+generate_ui_renders <- function(input, output, session) {
   for (plot_type in names(PLOT_CONFIG)) {
     local({
       my_plot_type <- plot_type
@@ -489,19 +597,25 @@ generate_ui_renders <- function() {
         create_plot_ui_config(my_plot_type, input[[paste0(my_plot_type, "_n")]], isolate(reactiveValuesToList(input)))
       })
       
-      # Create output UI render function
+      # Create output UI render function with conditional logic for Plot D
       output[[paste0(my_plot_type, "_outputs_ui")]] <- renderUI({
         req(input[[paste0(my_plot_type, "_n")]])
         
         lapply(1:input[[paste0(my_plot_type, "_n")]], function(i) {
-          plotOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
-                    height = config$height, width = "100%")
+          if (my_plot_type == "plot_D") {
+            # Use plotlyOutput for Plot D
+            plotlyOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
+                        height = config$height, width = "100%")
+          } else {
+            # Use plotOutput for other plots
+            plotOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
+                      height = config$height, width = "100%")
+          }
         })
       })
     })
   }
 }
-
 
 # ────────────────────────────────────────────────────────────────
 #### Utility Functions for Column Generation ####
@@ -1089,7 +1203,7 @@ generate_plot_D_content <- function(i, config, input) {
   # Create Sankey data with cohort filter
   sankey_data <- create_sankey_data(cohort_filter = values$x_var)
   
-  # Create the Sankey plot
+  # Create and return the Sankey plot
   create_plot_D_components(sankey_data, i, values)
 }
 
@@ -1321,27 +1435,6 @@ create_plot_C_components <- function(surv_data, i, values) {
 
 # Create plot components for Plot D (Treatment Pathways)
 create_plot_D_components <- function(sankey_data, i, values) {
-  
-  # Create a simplified flow diagram using ggplot
-  base_theme <- create_base_plot_theme()
-  
-  # Extract values from sankey_data for the flow
-  flow_values <- sankey_data$links$value
-  
-  # Create flow data for ggplot representation with cohort-specific values
-  treatment_flow <- data.frame(
-    Treatment = c("ESR1+ Diagnosis", "Endocrine + CDK4/6", "Chemotherapy",
-                  "Complete Response", "Partial Response", "Progressive Disease",
-                  "Elacestrant", "Clinical Trial", "Palliative Care"),
-    Patients = c(100,  # Total starting patients
-                 flow_values[1:2],  # First-line treatments (only 2 values)
-                 sum(flow_values[4:6]), sum(flow_values[7:9]), sum(flow_values[10:12]),  # Outcomes
-                 flow_values[13:15]),  # Second-line treatments
-    Stage = c(rep("Diagnosis", 1), rep("First-line", 2), rep("Response", 3), rep("Second-line", 3)),
-    x = c(1, rep(2, 2), rep(3, 3), rep(4, 3)),
-    y = c(1, 1.3, 0.7, 1.5, 1, 0.5, 1.5, 1, 0.5)
-  )
-  
   # Add cohort info to title if available
   cohort_label <- if(!is.null(sankey_data$cohort)) {
     paste0(" - ", sankey_data$cohort)
@@ -1349,47 +1442,69 @@ create_plot_D_components <- function(sankey_data, i, values) {
     ""
   }
   
-  p1 <- ggplot(treatment_flow, aes(x = x, y = y, size = Patients)) +
-    geom_point(aes(color = Stage), alpha = 0.7) +
-    geom_text(aes(label = paste0(Treatment, "\n(n=", Patients, ")")), 
-              size = 3, hjust = 0.5, vjust = -1.5) +
-    scale_color_manual(values = c("Diagnosis" = "#8B0000",
-                                  "First-line" = color_primary, 
-                                  "Response" = color_secondary, 
-                                  "Second-line" = "#2E8B57")) +
-    scale_size_continuous(range = c(3, 12)) +
-    scale_x_continuous(breaks = 1:4, 
-                       labels = c("Diagnosis", "First-line", "Response", "Second-line")) +
-    base_theme +
-    labs(
-      title = paste0("ESR1+ Treatment Pathway (", i, ")", cohort_label),
-      subtitle = "Patient flow through treatment stages",
-      x = "Treatment Stage",
-      y = "",
-      caption = values$figOvCap,
-      color = "Stage",
-      size = "Patients"
-    ) +
-    theme(
-      axis.text.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      plot.margin = unit(c(1, 1, 1, 1), "cm"),
-      plot.title = element_text(size = 18, hjust = 0.5, face = "bold"),
-      plot.subtitle = element_text(size = 16, hjust = 0.5),
-      plot.caption = element_text(size = 17, colour = "#C0C0C0", hjust = 0.9),
-      legend.position = "bottom"
-    ) +
-    ylim(-0.2, 2.2)
-  
-  # Apply the border theme
-  p1 + 
-    plot_annotation(
-      title = values$title,
-      subtitle = values$subtitle,
-      theme = create_border_theme_D()
+  # Create the Sankey plot using plotly
+  p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+    valueformat = ".0f",
+    valuesuffix = " patients",
+    
+    node = list(
+      label = sankey_data$nodes$name,
+      color = sankey_data$node_colors,
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+    
+    link = list(
+      source = sankey_data$links$source,
+      target = sankey_data$links$target,
+      value = sankey_data$links$value,
+      label = sankey_data$links$label,
+      color = 'rgba(0,0,0,0.2)'  # Semi-transparent links
     )
+  )
+  
+  # Apply layout with consistent styling
+  p <- p %>% layout(
+    title = list(
+      text = paste0("<b>", values$title, "</b><br>",
+                    "<span style='font-size:14px'>", values$subtitle, "</span><br>",
+                    "<span style='font-size:16px'>ESR1+ Treatment Pathway (", i, ")", cohort_label, "</span>"),
+      font = list(size = 18, color = color_primary),
+      x = 0.5,
+      xanchor = 'center'
+    ),
+    font = list(
+      size = 12,
+      color = color_fg,
+      family = "Helvetica Neue"
+    ),
+    xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+    yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+    plot_bgcolor = color_panel_bg,
+    paper_bgcolor = color_panel_bg,
+    margin = list(l = 20, r = 20, t = 100, b = 80),
+    annotations = list(
+      list(
+        text = values$figOvCap,
+        showarrow = FALSE,
+        xref = 'paper',
+        yref = 'paper',
+        x = 0.9,
+        y = -0.1,
+        xanchor = 'right',
+        yanchor = 'top',
+        font = list(size = 17, color = "#C0C0C0")
+      )
+    )
+  )
+  
+  return(p)
 }
 
 # Create base plot theme
@@ -1961,6 +2076,9 @@ create_report_log_tab <- function() {
 # Main UI function
 ui <- function(request) {
   fluidPage(
+    # Add this line to ensure plotly JavaScript is loaded:
+    plotlyOutput("dummy_plotly_to_load_js", height = "0px"),
+
     tags$head(
       tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css")
     ),
@@ -2149,7 +2267,7 @@ function fallbackCopyTextToClipboard(text) {
 # ────────────────────────────────────────────────────────────────
 
 server <- function(input, output, session) {
-  
+
   # DEBUG FUNCTION (keeping your original)
   safe_showNotification <- function(message, type = "default", duration = 5, ...) {
     cat("DEBUG: showNotification called with message:", message, "\n")
@@ -2184,28 +2302,7 @@ server <- function(input, output, session) {
   # ────────────────────────────────────────────────────────────────
   
   # Generate input and output UI renders for all configured plot types
-  for (plot_type in names(PLOT_CONFIG)) {
-    local({
-      my_plot_type <- plot_type
-      config <- PLOT_CONFIG[[my_plot_type]]
-      
-      # Create input UI render function
-      output[[paste0(my_plot_type, "_inputs_ui")]] <- renderUI({
-        req(input[[paste0(my_plot_type, "_n")]])
-        create_plot_ui_config(my_plot_type, input[[paste0(my_plot_type, "_n")]], isolate(reactiveValuesToList(input)))
-      })
-      
-      # Create output UI render function
-      output[[paste0(my_plot_type, "_outputs_ui")]] <- renderUI({
-        req(input[[paste0(my_plot_type, "_n")]])
-        
-        lapply(1:input[[paste0(my_plot_type, "_n")]], function(i) {
-          plotOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
-                    height = config$height, width = "100%")
-        })
-      })
-    })
-  }
+  generate_ui_renders(input, output, session)
   
   # ────────────────────────────────────────────────────────────────
   #### Crew Controller Setup (keeping your original) ####
@@ -2541,7 +2638,7 @@ observe({
 # Updated preset URLs that include data for all plot types
 observeEvent(input$load_basic_report, {
   # This URL now includes Plot C and D data
-  preset_url <- "http://127.0.0.1:5955/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22g%22&plot_A_annotation_1_1=%22fig-AA-1%22&plot_A_annotation_1_2=%22a%22&plot_A_annotation_1_3=%22b%22&plot_A_annotation_1_4=%22c%22&plot_A_annotation_1_5=%22d%22&plot_A_annotation_1_6=%22e%22&plot_A_annotation_1_7=%22f%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22hhh%22&plot_B_annotation_1_1=%22fig-BB-1%22&plot_B_annotation_1_2=%22aaa%22&plot_B_annotation_1_3=%22bbb%22&plot_B_annotation_1_4=%22ccc%22&plot_B_annotation_1_5=%22ddd%22&plot_B_annotation_1_6=%22eee%22&plot_B_annotation_1_7=%22fff%22&plot_B_annotation_1_8=%22ggg%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22fff%22&plot_C_annotation_1_1=%22fig-BB-1%22&plot_C_annotation_1_2=%22aaa%22&plot_C_annotation_1_3=%22bbb%22&plot_C_annotation_1_4=%22ccc%22&plot_C_annotation_1_5=%22ddd%22&plot_C_annotation_1_6=%22eee%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22dddd%22&plot_D_annotation_1_1=%22fig-DD-1%22&plot_D_annotation_1_2=%22aaaa%22&plot_D_annotation_1_3=%22bbbb%22&plot_D_annotation_1_4=%22cccc%22"
+  preset_url <- "http://127.0.0.1:3605/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=1&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%224%22&plot_A_Notes_shared=%22g%22&plot_A_annotation_1_1=%22fig-AA-1%22&plot_A_annotation_1_2=%22a%22&plot_A_annotation_1_3=%22b%22&plot_A_annotation_1_4=%22c%22&plot_A_annotation_1_5=%22d%22&plot_A_annotation_1_6=%22e%22&plot_A_annotation_1_7=%22f%22&plot_B_x1=%224%22&plot_B_Notes_shared=%22hh%22&plot_B_annotation_1_1=%22fig-BB-1%22&plot_B_annotation_1_2=%22aa%22&plot_B_annotation_1_3=%22bb%22&plot_B_annotation_1_4=%22cc%22&plot_B_annotation_1_5=%22dd%22&plot_B_annotation_1_6=%22ee%22&plot_B_annotation_1_7=%22ff%22&plot_B_annotation_1_8=%22gg%22&plot_C_x1=%224%22&plot_C_Notes_shared=%22fff%22&plot_C_annotation_1_1=%22fig-CC-1%22&plot_C_annotation_1_2=%22aaa%22&plot_C_annotation_1_3=%22bbb%22&plot_C_annotation_1_4=%22ccc%22&plot_C_annotation_1_5=%22ddd%22&plot_C_annotation_1_6=%22eee%22&plot_D_x1=%224%22&plot_D_Notes_shared=%22dddd%22&plot_D_annotation_1_1=%22fig-DD-1%22&plot_D_annotation_1_2=%22aaaa%22&plot_D_annotation_1_3=%22bbbb%22&plot_D_annotation_1_4=%22cccc%22"
   
   loadPresetReport(preset_url)
   safe_showNotification("Basic Report configuration loaded successfully!", type = "default")
@@ -2732,16 +2829,25 @@ observeEvent(input$load_basic_report_two, {
   
   # Generate plot outputs for all configured plot types
   for (plot_type in names(PLOT_CONFIG)) {
-    config <- PLOT_CONFIG[[plot_type]]
-    
-    for (i in 1:config$max_plots) {
-      local({
-        my_i <- i
-        my_plot_type <- plot_type
-        my_config <- config
-        
-        output_name <- paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", my_i)
-        
+  config <- PLOT_CONFIG[[plot_type]]
+  
+  for (i in 1:config$max_plots) {
+    local({
+      my_i <- i
+      my_plot_type <- plot_type
+      my_config <- config
+      
+      output_name <- paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", my_i)
+      
+      # Use conditional rendering based on plot type
+      if (my_plot_type == "plot_D") {
+        # Use renderPlotly for Plot D (Sankey diagram)
+        output[[output_name]] <- renderPlotly({
+          req(input[[paste0(my_plot_type, "_x", my_i)]])
+          generate_plot_D_content(my_i, my_config, input)
+        })
+      } else {
+        # Use renderPlot for all other plots (A, B, C)
         output[[output_name]] <- renderPlot({
           req(input[[paste0(my_plot_type, "_x", my_i)]])
           
@@ -2750,16 +2856,13 @@ observeEvent(input$load_basic_report_two, {
           } else if (my_plot_type == "plot_B") {
             generate_plot_B_content(my_i, my_config, input)
           } else if (my_plot_type == "plot_C") {
-            # ADD THIS CASE FOR PLOT C
             generate_plot_C_content(my_i, my_config, input)
-          } else if (my_plot_type == "plot_D") {
-            # ADD THIS CASE FOR PLOT D
-            generate_plot_D_content(my_i, my_config, input)
           }
         })
-      })
-    }
+      }
+    })
   }
+}
   
   # ────────────────────────────────────────────────────────────────
   #### Display Functions Using Configuration ####
