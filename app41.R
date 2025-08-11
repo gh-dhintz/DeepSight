@@ -1,4 +1,5 @@
-# app39_breast_cancer.R
+# app41.R
+# testing
 # ──────────────────────────────────────────────────────────────────
 #### Load Libraries ####
 # ────────────────────────────────────────────────────────────────
@@ -378,32 +379,17 @@ create_sankey_data <- function(cohort_filter = NULL) {
 # ────────────────────────────────────────────────────────────────
 #### Central Configuration Object (MOVE THIS TO THE TOP) ####
 # ────────────────────────────────────────────────────────────────
+
 PLOT_CONFIG <- list(
+  # SWAPPED: Plot B config is now first (as plot_A)
   plot_A = list(
-    label = "Treatment Selection (A)",
+    label = "ESR1 Dx Landscape (A)",  # Changed label from B to A
     max_plots = 6,
-    height = "655px",
+    height = "800px",  # Keep Plot B's original height
     has_annotations = TRUE,
-    num_annotations = 7,
+    num_annotations = 8,  # Keep Plot B's 8 annotations
     annotation_configs = list(
-      list(suffix = "1", label = "Reference Label (for referencing figures):", placeholder = "Must start with 'fig-' , ie fig-A-1, etc"),
-      list(suffix = "2", label = "Title:", placeholder = "My Title"),
-      list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
-      list(suffix = "4", label = "Panel 1 Caption:", placeholder = "My Panel Caption"),
-      list(suffix = "5", label = "Panel 2 Caption:", placeholder = "My Panel Caption"),
-      list(suffix = "6", label = "Panel 3 Caption:", placeholder = "My Panel Caption"),
-      list(suffix = "7", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
-    ),
-    display_labels = c("Reference Label", "Title", "Subtitle", "Panel 1", "Panel 2", "Panel 3", "Overall Figure")
-  ),
-  plot_B = list(
-    label = "ESR1 Dx Landscape (B)",
-    max_plots = 6,
-    height = "800px",
-    has_annotations = TRUE,
-    num_annotations = 8,
-    annotation_configs = list(
-      list(suffix = "1", label = "Reference Label:", placeholder = "fig-B-1, etc"),
+      list(suffix = "1", label = "Reference Label:", placeholder = "fig-A-1, etc"),  # Changed from B to A
       list(suffix = "2", label = "Title:", placeholder = "My Title"),
       list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
       list(suffix = "4", label = "Panel 1 Caption:", placeholder = "My Panel Caption"),
@@ -414,6 +400,27 @@ PLOT_CONFIG <- list(
     ),
     display_labels = c("Reference Label", "Title", "Subtitle", "Panel 1", "Panel 2", "Panel 3", "Panel 4", "Overall Figure")
   ),
+  
+  # SWAPPED: Plot A config is now second (as plot_B)
+  plot_B = list(
+    label = "Treatment Selection (B)",  # Changed label from A to B
+    max_plots = 6,
+    height = "655px",  # Keep Plot A's original height
+    has_annotations = TRUE,
+    num_annotations = 7,  # Keep Plot A's 7 annotations
+    annotation_configs = list(
+      list(suffix = "1", label = "Reference Label (for referencing figures):", placeholder = "Must start with 'fig-' , ie fig-B-1, etc"),  # Changed from A to B
+      list(suffix = "2", label = "Title:", placeholder = "My Title"),
+      list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
+      list(suffix = "4", label = "Panel 1 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "5", label = "Panel 2 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "6", label = "Panel 3 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "7", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
+    ),
+    display_labels = c("Reference Label", "Title", "Subtitle", "Panel 1", "Panel 2", "Panel 3", "Overall Figure")
+  ),
+  
+  # Keep plot_C and plot_D unchanged
   plot_C = list(
     label = "Survival Analysis (C)",
     max_plots = 6,
@@ -1048,6 +1055,7 @@ generate_log_entry <- function(all_inputs, format, bookmark_url) {
 
 # Generate input preview table data
 # Replace the get_plot_values function with this version that properly handles ~
+
 get_plot_values <- function(plot_type, i, input) {
   Roman_numerals <- as.roman(1:10)
   x_var <- input[[paste0(plot_type, "_x", i)]]
@@ -1075,18 +1083,8 @@ get_plot_values <- function(plot_type, i, input) {
   default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
   default_ref <- paste0("@fig-", plot_letter, "-", i)
   
+  # SWAPPED: Plot A now returns Plot B's structure (8 annotations, 4 plots)
   if (plot_type == "plot_A") {
-    list(
-      x_var = x_var,
-      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
-      title = get_ann(2, default_title),
-      subtitle = get_ann(3),
-      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
-      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
-      figOvCap = get_ann(7, default_figure)
-    )
-  } else if (plot_type == "plot_B") {
     list(
       x_var = x_var,
       figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
@@ -1097,6 +1095,19 @@ get_plot_values <- function(plot_type, i, input) {
       plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
       plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),
       figOvCap = get_ann(8, default_figure)
+    )
+  } 
+  # SWAPPED: Plot B now returns Plot A's structure (7 annotations, table + 2 plots)
+  else if (plot_type == "plot_B") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
+      figOvCap = get_ann(7, default_figure)
     )
   } else if (plot_type == "plot_C") {
     list(
@@ -1336,34 +1347,39 @@ generate_input_preview_data <- function(input) {
 
 # Generate Plot A content with breast cancer data
 generate_plot_A_content <- function(i, config, input) {
-  # Get current values using helper function
+  # Get current values
   values <- get_plot_values("plot_A", i, input)
   
   # Filter data by selected cohort
   dat <- bc_data %>% filter(cohort == values$x_var)
   
-  plots <- create_plot_A_components(dat, i, values, input)
-  table_component <- create_table_component_A(dat, i, input)
+  # Use Plot B's component creation (4 plots, no table)
+  plots <- create_plot_A_components(dat, i, values)
   
-  # Combine with patchwork
-  combine_plot_A_components(plots, table_component, values$figOvCap,
-    values$title, values$subtitle)
+  # Use Plot B's combination method
+  combine_plot_A_components(plots, values)
 }
 
 # Generate Plot B content with breast cancer data
+
 generate_plot_B_content <- function(i, config, input) {
-  # Get current values
+  # Get current values using helper function
   values <- get_plot_values("plot_B", i, input)
   
   # Filter data by selected cohort
   dat <- bc_data %>% filter(cohort == values$x_var)
   
-  plots <- create_plot_B_components(dat, i, values)
+  # Use Plot A's component creation (2 plots + table)
+  plots <- create_plot_B_components(dat, i, values, input)
   
-  # Combine with patchwork for Plot B layout
-  combine_plot_B_components(plots, values)
+  # Pass plot_type to table creation
+  plot_type <- "plot_B"  # Set this so the table function knows which annotations to use
+  table_component <- create_table_component_A(dat, i, input)
+  
+  # Use Plot A's combination method
+  combine_plot_B_components(plots, table_component, values$figOvCap,
+    values$title, values$subtitle)
 }
-
 # Generate Plot C content with survival analysis
 generate_plot_C_content <- function(i, config, input) {
   # Get current values using helper function
@@ -1464,7 +1480,7 @@ get_plot_values <- function(plot_type, i, input) {
 
 
 # Create plot components for Plot A - Treatment Selection
-create_plot_A_components <- function(dat, i, values, input) {
+create_plot_B_components <- function(dat, i, values, input) {
   base_theme <- create_base_plot_theme()
   values <- get_plot_values("plot_A", i, input)
   
@@ -1507,7 +1523,7 @@ create_plot_A_components <- function(dat, i, values, input) {
 }
 
 # Create plot components for Plot B - ESR1 Landscape
-create_plot_B_components <- function(dat, i, values) {
+create_plot_A_components <- function(dat, i, values) {
   base_theme <- create_base_plot_theme()
   
   # Plot 1 - ESR1 Expression Distribution
@@ -1712,8 +1728,21 @@ create_base_plot_theme <- function() {
 
 # Create table component for breast cancer data
 create_table_component_A <- function(dat, i, input) {
-  # Get current values using helper function
-  values <- get_plot_values("plot_A", i, input)
+  # MODIFIED: Determine which plot type is actually calling this
+  # Check if we're being called from plot_A or plot_B
+  calling_plot_type <- if (exists("plot_type", parent.frame())) {
+    get("plot_type", parent.frame())
+  } else {
+    # Try to infer from the input structure
+    if (!is.null(input$plot_B_annotation_1_4) && grepl("Panel", input$plot_B_annotation_1_4)) {
+      "plot_B"
+    } else {
+      "plot_A"
+    }
+  }
+  
+  # Get current values using the appropriate plot type
+  values <- get_plot_values(calling_plot_type, i, input)
   
   # Create summary table with time to treatment categories
   bins <- c(-Inf, 7, 14, 21, 28, 35, 42, Inf)
@@ -1730,7 +1759,7 @@ create_table_component_A <- function(dat, i, input) {
     arrange(factor(period, levels = labels)) %>%
     mutate(cumulative_pct = round(cumsum(pct_in_period), 1))
   
-  gt_tab <- create_styled_gt_table_A(table_data, i)
+  gt_tab <- create_styled_gt_table_B(table_data, i)
   
   wrap_table(gt_tab, panel = "full", space = "fixed") +
     labs(caption = values$tbl1Cap) + 
@@ -1745,11 +1774,10 @@ create_table_component_A <- function(dat, i, input) {
     )
 }
 
-# Create styled GT table for breast cancer data
-create_styled_gt_table_A <- function(table_data, i) {
+create_styled_gt_table_B <- function(table_data, i) {
   table_data %>%
     gt() %>%
-    tab_header(title = paste0("Time to Treatment Post-ESR1 Dx (", i, ")")) %>%
+    tab_header(title = paste0("Time to Treatment Post-ESR1 Dx (B.", i, ")")) %>%
     cols_label(
       period = "Time Period",
       n = "Patients",
@@ -1809,9 +1837,9 @@ combine_plot_C_components <- function(plots, overall_caption, title, subtitle) {
     )
 }
 
-combine_plot_A_components <- function(plots, table_component, overall_caption,
+combine_plot_B_components <- function(plots, table_component, overall_caption,
     title, subtitle) {
-  theme_border <- create_border_theme_A()
+  theme_border <- create_border_theme_B()
   
   (table_component + plots$p1) / plots$p2 + 
     plot_annotation(
@@ -1828,8 +1856,8 @@ combine_plot_A_components <- function(plots, table_component, overall_caption,
     )
 }
 
-combine_plot_B_components <- function(plots, values) {
-  theme_border <- create_border_theme_B()
+combine_plot_A_components <- function(plots, values) {
+  theme_border <- create_border_theme_A()
   
   plots$p1 / (plots$p2 + (plots$p3 / plots$p4)) + 
     plot_annotation(
@@ -1848,6 +1876,30 @@ combine_plot_B_components <- function(plots, values) {
 
 # Border themes (keeping same as original)
 create_border_theme_A <- function() {
+  theme_void() +
+    theme(
+      plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
+      plot.title = element_text(
+        size = 18, hjust = 0.5, face = "bold", family = "Helvetica Neue",
+        margin = margin(t = 15, b = 0, unit = "pt")
+      ),
+      plot.subtitle = element_text(
+        size = 16, hjust = 0.5, family = "Helvetica Neue",
+        margin = margin(t = 0, b = 0, unit = "pt") 
+      ),
+      plot.caption = element_text(
+        size = 17, colour = "#C0C0C0", hjust = 0.9,
+        margin = margin(t = 10, b = 55, unit = "pt")
+      ),
+      plot.tag = element_text(
+        size = 18, face = "bold", color = "#cc4c02"
+      ),
+      plot.margin = margin(t = 10, r = 5, b = 15, l = 5, unit = "pt")  # Changed from t = 15 to t = 10
+    )
+}
+
+
+create_border_theme_B <- function() {
   theme_void() + 
     theme(
       plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
@@ -1857,7 +1909,7 @@ create_border_theme_A <- function() {
       ),
       plot.subtitle = element_text(
         size = 16, hjust = 0.5, family = "Helvetica Neue",
-        margin = margin(t = 0, b = 85, unit = "pt")
+        margin = margin(t = 0, b = 85, unit = "pt")  # Changed from b = 10 to b = 85 (Plot A's value)
       ),
       plot.caption = element_text(
         size = 17, colour = "#C0C0C0", hjust = 0.9,
@@ -1866,32 +1918,10 @@ create_border_theme_A <- function() {
       plot.tag = element_text(
         size = 18, face = "bold", color = "#cc4c02"
       ),
-      plot.margin = margin(t = 15, r = 5, b = 15, l = 5, unit = "pt")
+      plot.margin = margin(t = 15, r = 5, b = 15, l = 5, unit = "pt")  # Changed from t = 10 to t = 15
     )
 }
 
-create_border_theme_B <- function() {
-  theme_void() +
-    theme(
-      plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
-      plot.title = element_text(
-        size = 18, hjust = 0.5, face = "bold", family = "Helvetica Neue",
-        margin = margin(t = 15, b = 10, unit = "pt")
-      ),
-      plot.subtitle = element_text(
-        size = 16, hjust = 0.5, family = "Helvetica Neue",
-        margin = margin(t = 0, b = 10, unit = "pt")
-      ),
-      plot.caption = element_text(
-        size = 17, colour = "#C0C0C0", hjust = 0.9,
-        margin = margin(t = 10, b = 55, unit = "pt")
-      ),
-      plot.tag = element_text(
-        size = 18, face = "bold", color = "#cc4c02"
-      ),
-      plot.margin = margin(t = 10, r = 5, b = 15, l = 5, unit = "pt")
-    )
-}
 
 create_border_theme_C <- function() {
   theme_void() + 
@@ -2827,7 +2857,7 @@ observe({
 # Updated preset URLs that include data for all plot types
 observeEvent(input$load_basic_report, {
   # This URL now includes Plot C and D data
-  preset_url <- "http://127.0.0.1:6639/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_1_2=%22Treatment%20Selection%20A.I%22&plot_A_annotation_1_3=%22Treatment%20Selection%20and%20Therapeutic%20Outcomes%22&plot_A_annotation_1_4=%22~%22&plot_A_annotation_1_5=%22~%22&plot_A_annotation_1_6=%22~%22&plot_A_annotation_1_7=%22%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_1_2=%22ESR1%20DX%20Landscape%20B.I%22&plot_B_annotation_1_3=%22~%22&plot_B_annotation_1_4=%22~%22&plot_B_annotation_1_5=%22~%22&plot_B_annotation_1_6=%22~%22&plot_B_annotation_1_7=%22~%22&plot_B_annotation_1_8=%22%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_1_2=%22Real-world%20Patient%20Outcomes%20to%20First%20Tx%20Following%20ESR1%20Dx%22&plot_C_annotation_1_3=%22~%22&plot_C_annotation_1_4=%22~%22&plot_C_annotation_1_5=%22~%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_1_2=%22Sankey%20Plot%20of%20Tx%20Sequencing%20following%20ESR1%20Dx%22&plot_D_annotation_1_3=%22~%22&plot_D_annotation_1_4=%22%22&.clientValue-default-plotlyCrosstalkOpts=%7B%22on%22%3A%22plotly_click%22%2C%22persistent%22%3Afalse%2C%22dynamic%22%3Afalse%2C%22selectize%22%3Afalse%2C%22opacityDim%22%3A0.2%2C%22selected%22%3A%7B%22opacity%22%3A1%7D%2C%22debounce%22%3A0%2C%22color%22%3A%5B%5D%7D&plotly_afterplot-A=%22%5C%22Plot_D_Obj1%5C%22%22&plotly_hover-A=null&plotly_relayout-A=%22%7B%5C%22width%5C%22%3A1052.65625%2C%5C%22height%5C%22%3A655%7D%22"
+  preset_url <- "http://127.0.0.1:6639/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=1&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_1_2=%22ESR1%20DX%20Landscape%20A.I%22&plot_A_annotation_1_3=%22~%22&plot_A_annotation_1_4=%22~%22&plot_A_annotation_1_5=%22~%22&plot_A_annotation_1_6=%22~%22&plot_A_annotation_1_7=%22~%22&plot_A_annotation_1_8=%22%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_1_2=%22Treatment%20Selection%20B.I%22&plot_B_annotation_1_3=%22Treatment%20Selection%20and%20Therapeutic%20Outcomes%22&plot_B_annotation_1_4=%22~%22&plot_B_annotation_1_5=%22~%22&plot_B_annotation_1_6=%22~%22&plot_B_annotation_1_7=%22%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_1_2=%22Real-world%20Patient%20Outcomes%20to%20First%20Tx%20Following%20ESR1%20Dx%22&plot_C_annotation_1_3=%22~%22&plot_C_annotation_1_4=%22~%22&plot_C_annotation_1_5=%22~%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_1_2=%22Sankey%20Plot%20of%20Tx%20Sequencing%20following%20ESR1%20Dx%22&plot_D_annotation_1_3=%22~%22&plot_D_annotation_1_4=%22%22&.clientValue-default-plotlyCrosstalkOpts=%7B%22on%22%3A%22plotly_click%22%2C%22persistent%22%3Afalse%2C%22dynamic%22%3Afalse%2C%22selectize%22%3Afalse%2C%22opacityDim%22%3A0.2%2C%22selected%22%3A%7B%22opacity%22%3A1%7D%2C%22debounce%22%3A0%2C%22color%22%3A%5B%5D%7D&plotly_afterplot-A=%22%5C%22Plot_D_Obj1%5C%22%22&plotly_hover-A=null&plotly_relayout-A=%22%7B%5C%22width%5C%22%3A1052.65625%2C%5C%22height%5C%22%3A655%7D%22"
   
   loadPresetReport(preset_url)
   safe_showNotification("Basic Report configuration loaded successfully!", type = "default")
@@ -2835,7 +2865,7 @@ observeEvent(input$load_basic_report, {
 
 observeEvent(input$load_basic_report_two, {
   # This URL now includes Plot C and D data with different values
-  preset_url <- "http://127.0.0.1:6639/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_1_2=%22Treatment%20Selection%20A.I%22&plot_A_annotation_1_3=%22Treatment%20Selection%20and%20Therapeutic%20Outcomes%22&plot_A_annotation_1_4=%22~%22&plot_A_annotation_1_5=%22~%22&plot_A_annotation_1_6=%22~%22&plot_A_annotation_1_7=%22%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_1_2=%22ESR1%20DX%20Landscape%20B.I%22&plot_B_annotation_1_3=%22~%22&plot_B_annotation_1_4=%22~%22&plot_B_annotation_1_5=%22~%22&plot_B_annotation_1_6=%22~%22&plot_B_annotation_1_7=%22~%22&plot_B_annotation_1_8=%22%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_1_2=%22Real-world%20Patient%20Outcomes%20to%20First%20Tx%20Following%20ESR1%20Dx%22&plot_C_annotation_1_3=%22~%22&plot_C_annotation_1_4=%22~%22&plot_C_annotation_1_5=%22~%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_1_2=%22Sankey%20Plot%20of%20Tx%20Sequencing%20following%20ESR1%20Dx%22&plot_D_annotation_1_3=%22~%22&plot_D_annotation_1_4=%22%22&.clientValue-default-plotlyCrosstalkOpts=%7B%22on%22%3A%22plotly_click%22%2C%22persistent%22%3Afalse%2C%22dynamic%22%3Afalse%2C%22selectize%22%3Afalse%2C%22opacityDim%22%3A0.2%2C%22selected%22%3A%7B%22opacity%22%3A1%7D%2C%22debounce%22%3A0%2C%22color%22%3A%5B%5D%7D&plotly_afterplot-A=%22%5C%22Plot_D_Obj1%5C%22%22&plotly_hover-A=null&plotly_relayout-A=%22%7B%5C%22width%5C%22%3A1052.65625%2C%5C%22height%5C%22%3A655%7D%22"
+  preset_url <- "http://127.0.0.1:6639/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=1&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_1_2=%22ESR1%20DX%20Landscape%20A.I%22&plot_A_annotation_1_3=%22~%22&plot_A_annotation_1_4=%22~%22&plot_A_annotation_1_5=%22~%22&plot_A_annotation_1_6=%22~%22&plot_A_annotation_1_7=%22~%22&plot_A_annotation_1_8=%22%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_1_2=%22Treatment%20Selection%20B.I%22&plot_B_annotation_1_3=%22Treatment%20Selection%20and%20Therapeutic%20Outcomes%22&plot_B_annotation_1_4=%22~%22&plot_B_annotation_1_5=%22~%22&plot_B_annotation_1_6=%22~%22&plot_B_annotation_1_7=%22%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_1_2=%22Real-world%20Patient%20Outcomes%20to%20First%20Tx%20Following%20ESR1%20Dx%22&plot_C_annotation_1_3=%22~%22&plot_C_annotation_1_4=%22~%22&plot_C_annotation_1_5=%22~%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_1_2=%22Sankey%20Plot%20of%20Tx%20Sequencing%20following%20ESR1%20Dx%22&plot_D_annotation_1_3=%22~%22&plot_D_annotation_1_4=%22%22&.clientValue-default-plotlyCrosstalkOpts=%7B%22on%22%3A%22plotly_click%22%2C%22persistent%22%3Afalse%2C%22dynamic%22%3Afalse%2C%22selectize%22%3Afalse%2C%22opacityDim%22%3A0.2%2C%22selected%22%3A%7B%22opacity%22%3A1%7D%2C%22debounce%22%3A0%2C%22color%22%3A%5B%5D%7D&plotly_afterplot-A=%22%5C%22Plot_D_Obj1%5C%22%22&plotly_hover-A=null&plotly_relayout-A=%22%7B%5C%22width%5C%22%3A1052.65625%2C%5C%22height%5C%22%3A655%7D%22"
   
   loadPresetReport(preset_url)
   safe_showNotification("Basic Report Two configuration loaded successfully!", type = "default")
@@ -2943,7 +2973,7 @@ observeEvent(input$load_basic_report_two, {
       
       isolate({
         fmt <- switch(input$format,
-          PDF = list(input = "pdf_14.qmd", format = "pdf", ext = "pdf"),
+          PDF = list(input = "pdf_15.qmd", format = "pdf", ext = "pdf"),
           HTML = list(input = "html.qmd", format = "html", ext = "html"),
           Word = list(input = "word.qmd", format = "docx", ext = "docx")
         )
