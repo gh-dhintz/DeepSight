@@ -1,9 +1,0 @@
-# Details from the child document two
-
-Hi, there. I'm a child with a plot and as many details as necessary.
-
-```{r fig-child-two, fig.cap="Trees dataset hist"}
-hist(trees$Girth)
-```
-
-See @fig-child-two for more information.

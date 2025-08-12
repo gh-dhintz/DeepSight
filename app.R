@@ -440,10 +440,12 @@ PLOT_CONFIG <- list(
     display_labels = c("Reference Label", "Title", "Subtitle", "Overall Figure")
   )
 )
-REPORT_LOG_FILE <- "report_log.tsv"  # Tab-separated file for tracking reports
+
+
+REPORT_LOG_FILE <- "config/report_log.tsv"  # Tab-separated file for tracking reports
 
 # addResourcePath("css", "www")
-addResourcePath("svg", "images")
+addResourcePath("svg", "assets/images")
 
 # ────────────────────────────────────────────────────────────────
 #### UI Support Functions for Server Integration ####
@@ -685,22 +687,52 @@ generate_plot_validation_reactives <- function() {
 
 # Update the log file initialization to use configuration
 initialize_log_file_config <- function() {
+  cat("DEBUG: Initializing log file at:", REPORT_LOG_FILE, "\n")
+  
+  # Create config directory if it doesn't exist
+  if (!dir.exists(dirname(REPORT_LOG_FILE))) {
+    cat("DEBUG: Creating directory:", dirname(REPORT_LOG_FILE), "\n")
+    dir.create(dirname(REPORT_LOG_FILE), recursive = TRUE)
+  }
+  
   if (!file.exists(REPORT_LOG_FILE)) {
+    cat("DEBUG: Creating new log file\n")
+    
     # Base header columns
     header_cols <- c(
-      "timestamp", "format", "title", "subtitle", "name",
-      "plot_A_n", "plot_B_n", "plot_C_n", "plot_D_n",  # ADD plot_C_n and plot_D_n
-      "plot_A_Notes_shared", "plot_B_Notes_shared", "plot_C_Notes_shared", "plot_D_Notes_shared",  # ADD plot_C and plot_D Notes
+      "timestamp", 
+      "format", 
+      "title", 
+      "subtitle", 
+      "name",
+      "plot_A_n", 
+      "plot_B_n", 
+      "plot_C_n", 
+      "plot_D_n",
+      "plot_A_Notes_shared", 
+      "plot_B_Notes_shared", 
+      "plot_C_Notes_shared", 
+      "plot_D_Notes_shared",
       "bookmark_url"
     )
     
     # Add dynamic plot columns using configuration
     for (plot_type in names(PLOT_CONFIG)) {
-      header_cols <- c(header_cols, generate_plot_columns_config(plot_type))
+      plot_cols <- generate_plot_columns_config(plot_type)
+      header_cols <- c(header_cols, plot_cols)
     }
     
-    # Write header
-    writeLines(paste(header_cols, collapse = "\t"), REPORT_LOG_FILE)
+    # Write header with explicit tab separation
+    header_line <- paste(header_cols, collapse = "\t")
+    writeLines(header_line, REPORT_LOG_FILE)
+    
+    # Debug: verify the header was written correctly
+    cat("DEBUG: Log file created with", length(header_cols), "columns\n")
+    cat("DEBUG: First few columns:", paste(header_cols[1:5], collapse = ", "), "\n")
+    cat("DEBUG: Verifying header line has correct number of tabs:", 
+        str_count(header_line, "\t"), "tabs for", length(header_cols), "columns\n")
+  } else {
+    cat("DEBUG: Log file already exists\n")
   }
 }
 
@@ -2853,13 +2885,13 @@ observeEvent(input$load_basic_report_two, {
         params = metadata_params,
         vars = vars_list
       ))
-      writeLines(yaml_content, "report_vars.yaml")
+      writeLines(yaml_content, "config/report_vars.yaml")
       
       isolate({
         fmt <- switch(input$format,
-          PDF = list(input = "pdf_15.qmd", format = "pdf", ext = "pdf"),
-          HTML = list(input = "html.qmd", format = "html", ext = "html"),
-          Word = list(input = "word.qmd", format = "docx", ext = "docx")
+          PDF = list(input = "templates/pdf_15.qmd", format = "pdf", ext = "pdf"),
+          HTML = list(input = "templates/html.qmd", format = "html", ext = "html"),
+          Word = list(input = "templates/word.qmd", format = "docx", ext = "docx")
         )
 
         out_file <- paste0("report.", fmt$ext)
@@ -3038,12 +3070,19 @@ observeEvent(input$load_basic_report_two, {
   
   # Function to read log file (keeping your original)
   read_log_file <- function() {
+    cat("DEBUG: Looking for log file at:", REPORT_LOG_FILE, "\n")
+    cat("DEBUG: Current working directory:", getwd(), "\n")
+    cat("DEBUG: File exists?", file.exists(REPORT_LOG_FILE), "\n") 
+
     if (!file.exists(REPORT_LOG_FILE)) {
+      cat("DEBUG: File does not exist, initializing...\n")
       return(data.frame(Message = "No reports generated yet"))
     }
     
     tryCatch({
+      cat("DEBUG: Attempting to read file...\n")
       log_data <- read.delim(REPORT_LOG_FILE, sep = "\t", stringsAsFactors = FALSE)
+      cat("DEBUG: Successfully read", nrow(log_data), "rows\n")
       
       if (nrow(log_data) == 0) {
         return(data.frame(Message = "No reports generated yet"))
@@ -3063,6 +3102,7 @@ observeEvent(input$load_basic_report_two, {
       
       return(log_data)
     }, error = function(e) {
+      cat("DEBUG: Error reading file:", e$message, "\n")
       return(data.frame(Error = paste("Failed to read log file:", e$message)))
     })
   }

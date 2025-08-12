@@ -2,10 +2,12 @@ input[type="number"] {
   max-width: 80%;
 }
 
-/* test*/
+/* test styles is working*/
+/*
 body {
   background-color: lightblue !important;
 }
+*/
 
 div.outer {
   position: fixed;

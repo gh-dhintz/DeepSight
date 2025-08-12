@@ -1,2 +1,20 @@
-.aider*
+# R files
+.Rhistory
+.RData
 .Rproj.user
+
+# Generated files
+*.pdf
+*.html
+*.docx
+config/report_vars.yaml
+
+# Archives
+archive/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# miscellaneous
+.aider*
