@@ -1,64 +1,448 @@
-# app38_v3.R
-# ────────────────────────────────────────────────────────────────
+# app41.R
+# testing
+# ──────────────────────────────────────────────────────────────────
 #### Load Libraries ####
 # ────────────────────────────────────────────────────────────────
-library(shiny)
-library(dplyr)
-library(ggplot2)
-library(quarto)
-library(shinythemes)
-library(yaml)
-library(crew)  # For asynchronous processing
-library(DT)   # Add this for DataTable functionality
-library(patchwork)
-library(gt)
+pacman::p_load(dplyr, ggplot2, tidyr, shiny, DT, plotly, quarto, shinythemes, yaml, crew, patchwork, gt, survival, survminer, networkD3, htmlwidgets, stringr)
+
+# ──────────────────────────────────────────────────────────────────
+#### Create Fake Breast Cancer Dataset ####
+# ──────────────────────────────────────────────────────────────────
+
+create_breast_cancer_data <- function(n = 500, seed = 123) {
+  set.seed(seed)
+  
+  # Define cohorts
+  cohorts <- c("HR+/HER2", "HR+/HER2_wESR1", "HR+/HER2_wco_PIK3CA_PTEN_AKT", "ESR1 alone")
+  
+  # Generate patient data
+  data <- data.frame(
+    patient_id = paste0("PT", sprintf("%04d", 1:n)),
+    cohort = sample(cohorts, n, replace = TRUE, prob = c(0.3, 0.25, 0.25, 0.2)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Add clinical characteristics based on cohort
+  data <- data %>%
+    mutate(
+      # ESR1 expression levels (higher in ESR1+ cohorts)
+      esr1_expression = case_when(
+        cohort == "HR+/HER2" ~ rnorm(n(), mean = 2, sd = 0.5),
+        cohort == "HR+/HER2_wESR1" ~ rnorm(n(), mean = 5, sd = 1),
+        cohort == "HR+/HER2_wco_PIK3CA_PTEN_AKT" ~ rnorm(n(), mean = 4.5, sd = 0.8),
+        cohort == "ESR1 alone" ~ rnorm(n(), mean = 6, sd = 1.2)
+      ),
+      
+      # PIK3CA mutation frequency (higher in co-mutation cohort)
+      pik3ca_mutation = case_when(
+        cohort == "HR+/HER2" ~ rbinom(n(), 1, 0.15),
+        cohort == "HR+/HER2_wESR1" ~ rbinom(n(), 1, 0.20),
+        cohort == "HR+/HER2_wco_PIK3CA_PTEN_AKT" ~ rbinom(n(), 1, 0.85),
+        cohort == "ESR1 alone" ~ rbinom(n(), 1, 0.10)
+      ),
+      
+      # Treatment response score (0-100)
+      treatment_response = case_when(
+        cohort == "HR+/HER2" ~ rnorm(n(), mean = 70, sd = 15),
+        cohort == "HR+/HER2_wESR1" ~ rnorm(n(), mean = 55, sd = 18),
+        cohort == "HR+/HER2_wco_PIK3CA_PTEN_AKT" ~ rnorm(n(), mean = 45, sd = 20),
+        cohort == "ESR1 alone" ~ rnorm(n(), mean = 50, sd = 17)
+      ),
+      
+      # Time to treatment discontinuation (days)
+      time_to_ttd = case_when(
+        cohort == "HR+/HER2" ~ rexp(n(), rate = 1/180),
+        cohort == "HR+/HER2_wESR1" ~ rexp(n(), rate = 1/120),
+        cohort == "HR+/HER2_wco_PIK3CA_PTEN_AKT" ~ rexp(n(), rate = 1/90),
+        cohort == "ESR1 alone" ~ rexp(n(), rate = 1/100)
+      ),
+      
+      # Time to next treatment (days)
+      time_to_ttnt = time_to_ttd + rexp(n, rate = 1/30),
+      
+      # Treatment line (1-5)
+      treatment_line = sample(1:5, n, replace = TRUE, prob = c(0.35, 0.30, 0.20, 0.10, 0.05)),
+      
+      # Therapy type
+      therapy_type = sample(c("Endocrine", "Chemotherapy", "Targeted Agent", "Immunotherapy"), 
+                           n, replace = TRUE, prob = c(0.40, 0.30, 0.25, 0.05)),
+      
+      # ESR1 mutation count
+      esr1_mutations = case_when(
+        cohort == "HR+/HER2" ~ rpois(n(), lambda = 0.5),
+        cohort == "HR+/HER2_wESR1" ~ rpois(n(), lambda = 2.5),
+        cohort == "HR+/HER2_wco_PIK3CA_PTEN_AKT" ~ rpois(n(), lambda = 2.0),
+        cohort == "ESR1 alone" ~ rpois(n(), lambda = 3.0)
+      ),
+      
+      # Diagnostic accuracy score
+      diagnostic_accuracy = rnorm(n, mean = 85, sd = 10),
+      
+      # Age at diagnosis
+      age = rnorm(n, mean = 60, sd = 12),
+      
+      # Stage
+      stage = sample(c("Early", "Advanced"), n, replace = TRUE, prob = c(0.4, 0.6)),
+      
+      # Previous therapies count
+      previous_therapies = rpois(n, lambda = 2),
+      
+      # Biomarker positivity rate
+      biomarker_positivity = runif(n, min = 0, max = 1),
+      
+      # Days from ESR1 diagnosis to treatment
+      days_to_tx = rexp(n, rate = 1/21)
+    )
+  
+  # Ensure positive values
+  data <- data %>%
+    mutate(
+      esr1_expression = pmax(esr1_expression, 0),
+      treatment_response = pmax(pmin(treatment_response, 100), 0),
+      time_to_ttd = pmax(time_to_ttd, 1),
+      time_to_ttnt = pmax(time_to_ttnt, time_to_ttd + 1),
+      diagnostic_accuracy = pmax(pmin(diagnostic_accuracy, 100), 0),
+      age = pmax(age, 18),
+      days_to_tx = pmax(days_to_tx, 0)
+    )
+  
+  return(data)
+}
+
+# Create the global dataset that replaces mtcars
+bc_data <- create_breast_cancer_data(n = 500, seed = 123)
+
+# ──────────────────────────────────────────────────────────────────
+#### Survival Analysis Functions ####
+# ──────────────────────────────────────────────────────────────────
+
+
+create_survival_data <- function(n = 100, seed = 123, cohort_filter = NULL) {
+  set.seed(seed)
+  
+  # If cohort_filter is provided, create cohort-specific survival data
+  if (!is.null(cohort_filter)) {
+    # Create survival data that varies by cohort
+    treatment <- sample(c("Endocrine + CDK4/6", "Chemotherapy"), n, replace = TRUE)
+    
+    # Base rates that vary by cohort
+    base_rates <- switch(cohort_filter,
+      "HR+/HER2" = list(treatment1 = 0.04, treatment2 = 0.07),
+      "HR+/HER2_wESR1" = list(treatment1 = 0.05, treatment2 = 0.09),
+      "HR+/HER2_wco_PIK3CA_PTEN_AKT" = list(treatment1 = 0.06, treatment2 = 0.10),
+      "ESR1 alone" = list(treatment1 = 0.055, treatment2 = 0.085),
+      # Default
+      list(treatment1 = 0.05, treatment2 = 0.08)
+    )
+    
+    # Generate survival times with cohort-specific hazards
+    time <- ifelse(treatment == "Endocrine + CDK4/6", 
+                   rexp(n, rate = base_rates$treatment1), 
+                   rexp(n, rate = base_rates$treatment2))
+    
+    # ESR1 status probability varies by cohort
+    esr1_prob <- switch(cohort_filter,
+      "HR+/HER2" = 0.2,
+      "HR+/HER2_wESR1" = 0.8,
+      "HR+/HER2_wco_PIK3CA_PTEN_AKT" = 0.7,
+      "ESR1 alone" = 0.95,
+      0.5  # Default
+    )
+    
+    esr1_status <- sample(c("ESR1+", "ESR1-"), n, replace = TRUE, 
+                         prob = c(esr1_prob, 1 - esr1_prob))
+    
+  } else {
+    # Original logic for when no cohort filter is provided
+    treatment <- sample(c("Endocrine + CDK4/6", "Chemotherapy"), n, replace = TRUE)
+    
+    time <- ifelse(treatment == "Endocrine + CDK4/6", 
+                   rexp(n, rate = 0.05), 
+                   rexp(n, rate = 0.08))
+    
+    esr1_status <- sample(c("ESR1+", "ESR1-"), n, replace = TRUE, prob = c(0.4, 0.6))
+  }
+  
+  # Generate censoring (some patients don't experience event)
+  censoring_prob <- 0.3
+  event <- rbinom(n, 1, 1 - censoring_prob)
+  
+  # For censored observations, truncate time at random point
+  time <- ifelse(event == 0, 
+                 pmin(time, runif(n, 5, 30)), 
+                 time)
+  
+  data.frame(
+    time = time,
+    event = event,
+    treatment = treatment,
+    age = rnorm(n, 60, 10),
+    stage = sample(c("Early", "Advanced"), n, replace = TRUE, prob = c(0.4, 0.6)),
+    esr1_status = esr1_status,
+    cohort = if(!is.null(cohort_filter)) cohort_filter else "All"
+  )
+}
+
+create_sankey_data <- function(cohort_filter = NULL) {
+  # Define nodes for the treatment pathway
+  nodes <- data.frame(
+    name = c(
+      # 0: Initial diagnosis
+      "ESR1+ Diagnosis",
+      # 1-3: First-line treatments
+      "Endocrine + CDK4/6", "Chemotherapy", "Targeted Therapy",
+      # 4-6: First outcomes
+      "Complete Response", "Partial Response", "Progressive Disease",
+      # 7-9: Second-line treatments
+      "Elacestrant", "Clinical Trial", "Palliative Care",
+      # 10-12: Final outcomes
+      "Stable Disease", "Disease Progression", "Long-term Response"
+    ),
+    stringsAsFactors = FALSE
+  )
+  
+  # Define cohort-specific flow values
+  if (!is.null(cohort_filter)) {
+    link_values <- switch(cohort_filter,
+      "HR+/HER2" = list(
+        first_line = c(50, 25, 25),          # To first-line treatments
+        endo_outcomes = c(25, 20, 5),        # Endocrine outcomes
+        chemo_outcomes = c(8, 12, 5),        # Chemo outcomes
+        targeted_outcomes = c(18, 5, 2),     # Targeted outcomes
+        second_line_pd = c(4, 3, 5),         # PD to second-line
+        second_line_pr = c(2, 1, 2),         # PR to second-line
+        elacestrant_final = c(2, 1, 1),     # Elacestrant final
+        trial_final = c(1, 1, 1),            # Trial final
+        palliative_final = c(3, 2, 2)       # Palliative final
+      ),
+      
+      "HR+/HER2_wESR1" = list(
+        first_line = c(40, 35, 25),
+        endo_outcomes = c(15, 20, 5),
+        chemo_outcomes = c(12, 18, 5),
+        targeted_outcomes = c(12, 10, 3),
+        second_line_pd = c(5, 4, 6),
+        second_line_pr = c(3, 2, 3),
+        elacestrant_final = c(3, 2, 2),
+        trial_final = c(2, 1, 1),
+        palliative_final = c(4, 3, 3)
+      ),
+      
+      "HR+/HER2_wco_PIK3CA_PTEN_AKT" = list(
+        first_line = c(35, 40, 25),
+        endo_outcomes = c(10, 20, 5),
+        chemo_outcomes = c(15, 20, 5),
+        targeted_outcomes = c(10, 12, 3),
+        second_line_pd = c(6, 5, 7),
+        second_line_pr = c(4, 3, 3),
+        elacestrant_final = c(4, 3, 3),
+        trial_final = c(3, 2, 2),
+        palliative_final = c(5, 4, 4)
+      ),
+      
+      "ESR1 alone" = list(
+        first_line = c(45, 30, 25),
+        endo_outcomes = c(20, 20, 5),
+        chemo_outcomes = c(10, 15, 5),
+        targeted_outcomes = c(15, 8, 2),
+        second_line_pd = c(4, 3, 4),
+        second_line_pr = c(2, 2, 2),
+        elacestrant_final = c(2, 1, 1),
+        trial_final = c(1, 1, 1),
+        palliative_final = c(2, 2, 2)
+      ),
+      
+      # Default values
+      list(
+        first_line = c(45, 30, 25),
+        endo_outcomes = c(20, 20, 5),
+        chemo_outcomes = c(10, 15, 5),
+        targeted_outcomes = c(15, 8, 2),
+        second_line_pd = c(4, 3, 4),
+        second_line_pr = c(2, 2, 2),
+        elacestrant_final = c(2, 1, 1),
+        trial_final = c(1, 1, 1),
+        palliative_final = c(2, 2, 2)
+      )
+    )
+  } else {
+    # Default values when no cohort specified
+    link_values <- list(
+      first_line = c(45, 30, 25),
+      endo_outcomes = c(20, 20, 5),
+      chemo_outcomes = c(10, 15, 5),
+      targeted_outcomes = c(15, 8, 2),
+      second_line_pd = c(4, 3, 4),
+      second_line_pr = c(2, 2, 2),
+      elacestrant_final = c(2, 1, 1),
+      trial_final = c(1, 1, 1),
+      palliative_final = c(2, 2, 2)
+    )
+  }
+  
+  # Build links from the cohort-specific values
+  links <- data.frame(
+    source = c(
+      # From diagnosis to first-line treatments
+      0, 0, 0,
+      # From Endocrine to outcomes
+      1, 1, 1,
+      # From Chemo to outcomes
+      2, 2, 2,
+      # From Targeted to outcomes
+      3, 3, 3,
+      # From Progressive Disease to second-line
+      6, 6, 6,
+      # From Partial Response to second-line
+      5, 5, 5,
+      # From Elacestrant to final outcomes
+      7, 7, 7,
+      # From Clinical Trial to final outcomes
+      8, 8, 8,
+      # From Palliative Care to final outcomes
+      9, 9, 9
+    ),
+    target = c(
+      # To first-line treatments
+      1, 2, 3,
+      # To first outcomes
+      4, 5, 6,
+      4, 5, 6,
+      4, 5, 6,
+      # To second-line treatments
+      7, 8, 9,
+      7, 8, 9,
+      # To final outcomes
+      10, 11, 12,
+      10, 11, 12,
+      10, 11, 12
+    ),
+    value = c(
+      link_values$first_line,
+      link_values$endo_outcomes,
+      link_values$chemo_outcomes,
+      link_values$targeted_outcomes,
+      link_values$second_line_pd,
+      link_values$second_line_pr,
+      link_values$elacestrant_final,
+      link_values$trial_final,
+      link_values$palliative_final
+    ),
+    stringsAsFactors = FALSE
+  )
+  
+  # Add labels to links
+  links$label <- paste0(links$value, " patients")
+  
+  # Define colors for nodes
+  node_colors <- c(
+    "#8B0000",     # Diagnosis - Dark red
+    "#4682B4",     # Endocrine - Steel blue
+    "#FF6347",     # Chemo - Tomato
+    "#32CD32",     # Targeted - Lime green
+    "#228B22",     # Complete Response - Forest green
+    "#FFA500",     # Partial Response - Orange
+    "#DC143C",     # Progressive Disease - Crimson
+    "#9370DB",     # Elacestrant - Medium purple
+    "#20B2AA",     # Clinical Trial - Light sea green
+    "#708090",     # Palliative - Slate gray
+    "#3CB371",     # Stable Disease - Medium sea green
+    "#FF4500",     # Disease Progression - Orange red
+    "#00CED1"      # Long-term Response - Dark turquoise
+  )
+  
+  return(list(
+    nodes = nodes,
+    links = links,
+    node_colors = node_colors,
+    cohort = cohort_filter
+  ))
+}
 
 # ────────────────────────────────────────────────────────────────
 #### Central Configuration Object (MOVE THIS TO THE TOP) ####
 # ────────────────────────────────────────────────────────────────
+
 PLOT_CONFIG <- list(
+  # SWAPPED: Plot B config is now first (as plot_A)
   plot_A = list(
-    label = "Treatment Selection (A)",
+    label = "ESR1 Dx Landscape (A)",  # Changed label from B to A
+    max_plots = 6,
+    height = "800px",  # Keep Plot B's original height
+    has_annotations = TRUE,
+    num_annotations = 8,  # Keep Plot B's 8 annotations
+    annotation_configs = list(
+      list(suffix = "1", label = "Reference Label:", placeholder = "fig-A-1, etc"),  # Changed from B to A
+      list(suffix = "2", label = "Title:", placeholder = "My Title"),
+      list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
+      list(suffix = "4", label = "Panel 1 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "5", label = "Panel 2 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "6", label = "Panel 3 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "7", label = "Panel 4 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "8", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
+    ),
+    display_labels = c("Reference Label", "Title", "Subtitle", "Panel 1", "Panel 2", "Panel 3", "Panel 4", "Overall Figure")
+  ),
+  
+  # SWAPPED: Plot A config is now second (as plot_B)
+  plot_B = list(
+    label = "Treatment Selection (B)",  # Changed label from A to B
+    max_plots = 6,
+    height = "655px",  # Keep Plot A's original height
+    has_annotations = TRUE,
+    num_annotations = 7,  # Keep Plot A's 7 annotations
+    annotation_configs = list(
+      list(suffix = "1", label = "Reference Label (for referencing figures):", placeholder = "Must start with 'fig-' , ie fig-B-1, etc"),  # Changed from A to B
+      list(suffix = "2", label = "Title:", placeholder = "My Title"),
+      list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
+      list(suffix = "4", label = "Panel 1 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "5", label = "Panel 2 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "6", label = "Panel 3 Caption:", placeholder = "My Panel Caption"),
+      list(suffix = "7", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
+    ),
+    display_labels = c("Reference Label", "Title", "Subtitle", "Panel 1", "Panel 2", "Panel 3", "Overall Figure")
+  ),
+  
+  # Keep plot_C and plot_D unchanged
+  plot_C = list(
+    label = "Survival Analysis (C)",
     max_plots = 6,
     height = "655px",
     has_annotations = TRUE,
-    num_annotations = 7,
+    num_annotations = 6,
     annotation_configs = list(
-      list(suffix = "1", label = "Reference Label (for referencing figures):", placeholder = "Must start with 'fig-' , ie fig-A-1, etc"),
+      list(suffix = "1", label = "Reference Label (for referencing figures):", 
+          placeholder = "Must start with 'fig-' , ie fig-C-1, etc"),
       list(suffix = "2", label = "Title:", placeholder = "My Title"),
       list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
-      list(suffix = "4", label = "Table 1 Caption:", placeholder = "My Table Caption"),
-      list(suffix = "5", label = "Plot 1 Caption:", placeholder = "My Plot Caption"),
-      list(suffix = "6", label = "Plot 2 Caption:", placeholder = "My Plot Caption"),
-      list(suffix = "7", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
+      list(suffix = "4", label = "Panel 1 Caption:", 
+          placeholder = "Treatment Comparison Caption"),
+      list(suffix = "5", label = "Panel 2 Caption:", 
+          placeholder = "Stage Comparison Caption"),
+      list(suffix = "6", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
     ),
-    # ADD: Display labels for preview table
-    display_labels = c("Reference Label", "Title", "Subtitle", "Table 1", "Plot 1", "Plot 2", "Overall Figure")
+    display_labels = c("Reference Label", "Title", "Subtitle", 
+                      "Panel 1", "Panel 2", "Overall Figure")
   ),
-  plot_B = list(
-    label = "ESR1 Dx Landscape (B)",
+  plot_D = list(
+    label = "Treatment Pathways (D)",
     max_plots = 6,
-    height = "800px",
+    height = "655px",
     has_annotations = TRUE,
-    num_annotations = 8,  # ← CHANGE: Now 8 annotations instead of 7
+    num_annotations = 4,
     annotation_configs = list(
-      list(suffix = "1", label = "Reference Label:", placeholder = "fig-B-1, etc"),
+      list(suffix = "1", label = "Reference Label (for referencing figures):", 
+          placeholder = "Must start with 'fig-' , ie fig-D-1, etc"),
       list(suffix = "2", label = "Title:", placeholder = "My Title"),
       list(suffix = "3", label = "Subtitle:", placeholder = "My Subtitle"),
-      list(suffix = "4", label = "Plot 1 Caption:", placeholder = "Expression Plot"),
-      list(suffix = "5", label = "Plot 2 Caption:", placeholder = "Mutation Plot"),
-      list(suffix = "6", label = "Plot 3 Caption:", placeholder = "Response Plot"),
-      list(suffix = "7", label = "Plot 4 Caption:", placeholder = "Diagnostic Plot"),
-      list(suffix = "8", label = "Overall Figure Caption:", placeholder = "ESR1 Landscape")
+      list(suffix = "4", label = "Overall Figure Caption:", placeholder = "My Figure Caption")
     ),
-    # ADD: Display labels for preview table (8 labels to match 8 annotations)
-    display_labels = c("Reference Label", "Title", "Subtitle", "Plot 1", "Plot 2", "Plot 3", "Plot 4", "Overall Figure")
+    display_labels = c("Reference Label", "Title", "Subtitle", "Overall Figure")
   )
 )
-
 REPORT_LOG_FILE <- "report_log.tsv"  # Tab-separated file for tracking reports
 
-addResourcePath("css", "www")
+# addResourcePath("css", "www")
 addResourcePath("svg", "images")
 
 # ────────────────────────────────────────────────────────────────
@@ -67,6 +451,13 @@ addResourcePath("svg", "images")
 
 # Helper function for null coalescing
 `%||%` <- function(x, y) if (is.null(x)) y else x
+
+sanitize_annotation_value <- function(value) {
+  if (is.null(value) || value == "~") {
+    return("")
+  }
+  return(value)
+}
 
 # ────────────────────────────────────────────────────────────────
 #### Dynamic UI Generation Functions ####
@@ -96,13 +487,19 @@ create_single_plot_input_config <- function(plot_type, i, input_values, config) 
   
   # Get current values or defaults
   current_x <- input_values[[x_var_name]]
-  default_x <- c("wt", "hp", "disp")[min(i, 3)]
+  
+  # Updated cohort choices for breast cancer data
+  cohort_choices <- unique(bc_data$cohort)
+  default_x <- cohort_choices[min(i, length(cohort_choices))]
+  
+  # Updated label to use Plot.Figure hierarchy
+  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
   
   base_inputs <- list(
     if (i > 1) br(),
     selectInput(x_var_name, 
-               paste0("X Variable for ", gsub("[^a-zA-Z0-9 ]", "", config$label), ".", Roman_numerals[i], ":"), 
-               choices = unique(mtcars$gear),
+               paste0("Cohort for Plot ", plot_letter, ".", Roman_numerals[i], ":"), 
+               choices = cohort_choices,
                selected = current_x %||% default_x)
   )
   
@@ -118,6 +515,8 @@ create_single_plot_input_config <- function(plot_type, i, input_values, config) 
 # Create annotation section based on configuration
 create_annotation_section_config <- function(plot_type, i, input_values, config) {
   Roman_numerals <- as.roman(1:10)
+  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+  
   div(
     h6(
       a(
@@ -127,7 +526,7 @@ create_annotation_section_config <- function(plot_type, i, input_values, config)
         `aria-controls` = paste0("collapse_", plot_type, "_", i),
         style = "text-decoration: none; color: inherit;",
         tags$i(class = "fa fa-caret-right"),
-        paste0(" Plot Annotations for ", gsub("[^a-zA-Z0-9 ]", "", config$label), ".", Roman_numerals[i]), 
+        paste0(" Figure Annotations for Plot ", plot_letter, ".", Roman_numerals[i]), 
       ),
       class = "text-secondary", style = "font-weight: bold; cursor: pointer; font-size: 16px;"
     ),
@@ -143,8 +542,9 @@ create_annotation_section_config <- function(plot_type, i, input_values, config)
 generate_annotation_inputs_config <- function(plot_type, i, input_values, annotation_configs) {
   inputs <- list()
   
-  for (config in annotation_configs) {
-    input_name <- paste0(plot_type, "_annotation_", config$suffix, "_", i)
+  for (j in seq_along(annotation_configs)) {
+    config <- annotation_configs[[j]]
+    input_name <- paste0(plot_type, "_annotation_", i, "_", j)
     current_value <- input_values[[input_name]]
     
     inputs[[length(inputs) + 1]] <- textInput(
@@ -164,22 +564,25 @@ create_shared_inputs_config <- function(plot_type, input_values, config) {
   notes_name <- paste0(plot_type, "_Notes_shared")
   current_notes <- input_values[[notes_name]]
   
+  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+  
   div(
     br(),
     textAreaInput(notes_name, 
                  paste0("Figure Notes"), 
                  value = current_notes %||% "",
-                 placeholder = paste0("Add Notes here. Use default or chosen figure reference under Plot Annotations, e.g., ", "fig-", substr(plot_type, 6,6), "-1, but add the '@' suffix. For example, See @fig-", substr(plot_type, 6,6), "-1 becomes See Fig. 1.1"), 
+                 placeholder = paste0("Add Notes here. Use default or chosen figure reference under annotations, e.g., fig-", plot_letter, "-1, but add the '@' suffix. For example, See @fig-", plot_letter, "-1 becomes See Fig. A.1"), 
                  height = "100px", width = "100%")
   )
 }
+
 
 # ────────────────────────────────────────────────────────────────
 #### Server-side UI Render Functions ####
 # ────────────────────────────────────────────────────────────────
 
 # Generate UI render functions for all plot types
-generate_ui_renders <- function() {
+generate_ui_renders <- function(input, output, session) {
   for (plot_type in names(PLOT_CONFIG)) {
     local({
       my_plot_type <- plot_type
@@ -191,13 +594,20 @@ generate_ui_renders <- function() {
         create_plot_ui_config(my_plot_type, input[[paste0(my_plot_type, "_n")]], isolate(reactiveValuesToList(input)))
       })
       
-      # Create output UI render function
+      # Create output UI render function with conditional logic for Plot D
       output[[paste0(my_plot_type, "_outputs_ui")]] <- renderUI({
         req(input[[paste0(my_plot_type, "_n")]])
         
         lapply(1:input[[paste0(my_plot_type, "_n")]], function(i) {
-          plotOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
-                    height = config$height, width = "100%")
+          if (my_plot_type == "plot_D") {
+            # Use plotlyOutput for Plot D
+            plotlyOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
+                        height = config$height, width = "100%")
+          } else {
+            # Use plotOutput for other plots
+            plotOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
+                      height = config$height, width = "100%")
+          }
         })
       })
     })
@@ -216,19 +626,19 @@ generate_plot_columns_config <- function(plot_type) {
   for (i in 1:config$max_plots) {
     # Base columns
     columns <- c(columns, 
-                paste0(plot_type, "_x", i)
-                )
+                paste0(plot_type, "_x", i))
     
     # Add annotation captions if configured
     if (config$has_annotations) {
       for (j in 1:config$num_annotations) {
-        columns <- c(columns, paste0(plot_type, "_annotation_", j, "_", i))
+        columns <- c(columns, paste0(plot_type, "_annotation_", i, "_", j))  # Changed: i=figure, j=panel
       }
     }
   }
   
   return(columns)
 }
+
 
 # ────────────────────────────────────────────────────────────────
 #### Validation Functions ####
@@ -249,6 +659,7 @@ check_plot_visited <- function(plot_type, input) {
   return(FALSE)
 }
 
+
 # Generate reactive expressions for plot validation
 generate_plot_validation_reactives <- function() {
   validation_reactives <- list()
@@ -267,6 +678,7 @@ generate_plot_validation_reactives <- function() {
   return(validation_reactives)
 }
 
+
 # ────────────────────────────────────────────────────────────────
 #### Configuration Integration Functions ####
 # ────────────────────────────────────────────────────────────────
@@ -277,8 +689,8 @@ initialize_log_file_config <- function() {
     # Base header columns
     header_cols <- c(
       "timestamp", "format", "title", "subtitle", "name",
-      "plot_A_n", "plot_B_n", 
-      "plot_A_Notes_shared", "plot_B_Notes_shared",
+      "plot_A_n", "plot_B_n", "plot_C_n", "plot_D_n",  # ADD plot_C_n and plot_D_n
+      "plot_A_Notes_shared", "plot_B_Notes_shared", "plot_C_Notes_shared", "plot_D_Notes_shared",  # ADD plot_C and plot_D Notes
       "bookmark_url"
     )
     
@@ -320,6 +732,28 @@ generate_checklist_data <- function(input) {
   return(checklist_data)
 }
 
+# Create shared inputs section
+create_shared_inputs_config <- function(plot_type, input_values, config) {
+  Roman_numerals <- as.roman(1:10)
+  notes_name <- paste0(plot_type, "_Notes_shared")
+  current_notes <- input_values[[notes_name]]
+  
+  # Get plot letter for hierarchy
+  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+  
+  div(
+    br(),
+    textAreaInput(notes_name, 
+                 paste0("Figure Notes"), 
+                 value = current_notes %||% "",
+                 # ← CHANGED: Updated placeholder to use new hierarchy
+                 placeholder = paste0("Add Notes here. Use default or chosen figure reference under annotations, e.g., fig-", plot_letter, "-1, but add the '@' suffix. For example, See @fig-", plot_letter, "-1 becomes See Fig. A.1"), 
+                 height = "100px", width = "100%")
+  )
+}
+
+
+
 # ────────────────────────────────────────────────────────────────
 #### Input Collection Functions ####
 # ────────────────────────────────────────────────────────────────
@@ -331,6 +765,7 @@ collect_plot_inputs <- function(input, plot_type, n_plots) {
   inputs <- list()
   Roman_numerals <- as.roman(1:10)
   numerals <- 1:10
+  
   for (i in 1:n_plots) {
     # Base inputs
     x_var_name <- paste0(plot_type, "_x", i)
@@ -340,70 +775,66 @@ collect_plot_inputs <- function(input, plot_type, n_plots) {
     }
     
     # Add annotation captions if this plot type has them
-    # Improved version with proper indexing and comprehensive defaults
     config <- PLOT_CONFIG[[plot_type]]
     if (config$has_annotations) {
       for (j in 1:config$num_annotations) {
-        ann_name <- paste0(plot_type, "_annotation_", j, "_", i)
+        ann_name <- paste0(plot_type, "_annotation_", i, "_", j)
         ann_value <- input[[ann_name]]
         
         # Get the label for this annotation position
         label <- config$display_labels[j]
         
-        # Provide defaults for different annotation types
+        # Check if it's the ~ character - preserve it as-is
+        if (!is.null(ann_value) && ann_value == "~") {
+          inputs[[ann_name]] <- "~"  # Preserve the ~ marker
+          next  # Skip default processing
+        }
+        
+        # For Reference Label
         if (label == "Reference Label") {
-          if (is.null(ann_value) || ann_value == "") {
-            # Generate default reference label
-            default_ref <- paste0("fig-plot-", substr(plot_type, nchar(plot_type), nchar(plot_type)), "-", numerals[i])
+          if (is.null(ann_value)) {
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_ref <- paste0("fig-", plot_letter, "-", numerals[i])
             inputs[[ann_name]] <- default_ref
           } else {
             inputs[[ann_name]] <- ann_value
           }
         } else if (label == "Title") {
           if (is.null(ann_value) || ann_value == "") {
-            # Generate default title
             label_clean <- gsub("[()]", "", config$label)
-            default_title <- paste0(label_clean, ".", Roman_numerals[i])
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_title <- paste0("Plot ", plot_letter, ".", Roman_numerals[i])
             inputs[[ann_name]] <- default_title
           } else {
             inputs[[ann_name]] <- ann_value
           }
         } else if (label == "Subtitle") {
           if (is.null(ann_value) || ann_value == "") {
-            # Generate default subtitle
-            default_subtitle <- paste0("Analysis ", Roman_numerals[i])
+            default_subtitle <- paste0("Figure ", Roman_numerals[i], " Analysis")
             inputs[[ann_name]] <- default_subtitle
           } else {
             inputs[[ann_name]] <- ann_value
           }
-        } else if (grepl("Table", label)) {
+        } else if (grepl("Panel", label)) {
           if (is.null(ann_value) || ann_value == "") {
-            # Generate default table caption
-            default_table <- paste0("Table ", Roman_numerals[i], ".1")
-            inputs[[ann_name]] <- default_table
-          } else {
-            inputs[[ann_name]] <- ann_value
-          }
-        } else if (grepl("Plot", label)) {
-          if (is.null(ann_value) || ann_value == "") {
-            # Extract plot number from label (e.g., "Plot 1" -> "1")
-            plot_num <- gsub(".*Plot ([0-9]+).*", "\\1", label)
-            default_plot <- paste0("Panel ", Roman_numerals[i], ".", plot_num)
-            inputs[[ann_name]] <- default_plot
+            panel_num <- gsub(".*Panel ([0-9]+).*", "\\1", label)
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_panel <- paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".", panel_num)
+            inputs[[ann_name]] <- default_panel
           } else {
             inputs[[ann_name]] <- ann_value
           }
         } else if (label == "Overall Figure") {
           if (is.null(ann_value) || ann_value == "") {
-            # Generate default overall figure caption
-            default_figure <- paste0("Figure ", Roman_numerals[i])
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
             inputs[[ann_name]] <- default_figure
           } else {
             inputs[[ann_name]] <- ann_value
           }
         } else {
-          # For any other annotations, only add if not null and not empty
-          if (!is.null(ann_value) && ann_value != "") {
+          # For any other annotations
+          if (!is.null(ann_value)) {
             inputs[[ann_name]] <- ann_value
           }
         }
@@ -414,6 +845,7 @@ collect_plot_inputs <- function(input, plot_type, n_plots) {
   # Add shared notes
   notes_name <- paste0(plot_type, "_Notes_shared")
   if (!is.null(input[[notes_name]])) {
+    # Preserve ~ for notes as well
     inputs[[notes_name]] <- input[[notes_name]]
   }
   
@@ -426,10 +858,10 @@ collect_all_active_inputs <- function(input) {
   
   # Remove ALL plot-specific inputs first
   plot_patterns <- c(
-    "^plot_A_x", "^plot_B_x", 
-    "^plot_A_annotation", "^plot_B_annotation",
-    "^plot_A_Notes_shared", "^plot_B_Notes_shared"
-  )
+  "^plot_A_x", "^plot_B_x", "^plot_C_x", "^plot_D_x",
+  "^plot_A_annotation", "^plot_B_annotation", "^plot_C_annotation", "^plot_D_annotation",
+  "^plot_A_Notes_shared", "^plot_B_Notes_shared", "^plot_C_Notes_shared", "^plot_D_Notes_shared"
+)
   for (pattern in plot_patterns) {
     to_remove <- names(all_inputs)[grepl(pattern, names(all_inputs))]
     all_inputs[to_remove] <- NULL
@@ -443,11 +875,18 @@ collect_all_active_inputs <- function(input) {
   }
   
   # Ensure QMD compatibility variables exist (only if not already present)
-  if (!"plot_A_caption_shared" %in% names(all_inputs)) {
+   if (!"plot_A_caption_shared" %in% names(all_inputs)) {
     all_inputs$plot_A_caption_shared <- ""
   }
   if (!"plot_B_caption_shared" %in% names(all_inputs)) {
     all_inputs$plot_B_caption_shared <- ""
+  }
+  # ADD THESE TWO LINES FOR PLOT C AND D:
+  if (!"plot_C_caption_shared" %in% names(all_inputs)) {
+    all_inputs$plot_C_caption_shared <- ""
+  }
+  if (!"plot_D_caption_shared" %in% names(all_inputs)) {
+    all_inputs$plot_D_caption_shared <- ""
   }
 
   return(all_inputs)
@@ -460,8 +899,12 @@ collect_all_active_inputs <- function(input) {
 # Configuration for parameter patterns
 PARAM_PATTERNS <- list(
   metadata = c("title", "subtitle", "name"),
-  base_plot = c("plot_A_n", "plot_B_n", "plot_A_Notes_shared", "plot_B_Notes_shared"),
-  dynamic_plot = c("^plot_A_x", "^plot_B_x", "^plot_A_annotation", "^plot_B_annotation")
+  base_plot = c("plot_A_n", "plot_B_n", "plot_C_n", "plot_D_n",  # ADD plot_C_n and plot_D_n
+                "plot_A_Notes_shared", "plot_B_Notes_shared", "plot_C_Notes_shared", "plot_D_Notes_shared"),  # ADD Notes for C and D
+  dynamic_plot = c(
+    "^plot_A_x", "^plot_B_x", "^plot_C_x", "^plot_D_x",  # ADD x variable patterns for C and D
+  "^plot_A_annotation", "^plot_B_annotation", "^plot_C_annotation", "^plot_D_annotation"
+)  # ADD annotation patterns for C and D
 )
 
 # Extract relevant parameters from URL parsing
@@ -506,8 +949,14 @@ PARAM_LABELS <- list(
   plot_base = list(
     plot_A_n = paste0("📊 ", PLOT_CONFIG$plot_A$label, " - Number of Plots"),
     plot_B_n = paste0("📊 ", PLOT_CONFIG$plot_B$label, " - Number of Plots"),
+    # ADD THESE TWO LINES:
+    plot_C_n = paste0("📊 ", PLOT_CONFIG$plot_C$label, " - Number of Plots"),
+    plot_D_n = paste0("📊 ", PLOT_CONFIG$plot_D$label, " - Number of Plots"),
     plot_A_Notes_shared = paste0("📊 ", PLOT_CONFIG$plot_A$label, " - Shared Notes"),
-    plot_B_Notes_shared = paste0("📊 ", PLOT_CONFIG$plot_B$label, " - Shared Notes")
+    plot_B_Notes_shared = paste0("📊 ", PLOT_CONFIG$plot_B$label, " - Shared Notes"),
+    # ADD THESE TWO LINES:
+    plot_C_Notes_shared = paste0("📊 ", PLOT_CONFIG$plot_C$label, " - Shared Notes"),
+    plot_D_Notes_shared = paste0("📊 ", PLOT_CONFIG$plot_D$label, " - Shared Notes")
   )
 )
 
@@ -539,7 +988,7 @@ create_readable_param_name <- function(param) {
       ann_pattern <- paste0("^", plot_type, "_annotation_(\\d+)_(\\d+)$")
       matches <- regmatches(param, regexec(ann_pattern, param))[[1]]
       if (length(matches) > 2) {
-        return(paste0("📊 ", config$label, " ", matches[3], " - Annotation ", matches[2]))
+        return(paste0("📊 ", config$label, " ", matches[2], " - Annotation ", matches[3]))  # Changed: matches[2]=figure, matches[3]=panel
       }
     }
   }
@@ -562,8 +1011,12 @@ generate_log_entry <- function(all_inputs, format, bookmark_url) {
     name = all_inputs$name %||% "",
     plot_A_n = all_inputs$plot_A_n %||% "",
     plot_B_n = all_inputs$plot_B_n %||% "",
+    plot_C_n = all_inputs$plot_C_n %||% "",  # ADD THIS LINE
+    plot_D_n = all_inputs$plot_D_n %||% "",  # ADD THIS LINE
     plot_A_Notes_shared = all_inputs$plot_A_Notes_shared %||% "",
     plot_B_Notes_shared = all_inputs$plot_B_Notes_shared %||% "",
+    plot_C_Notes_shared = all_inputs$plot_C_Notes_shared %||% "",  # ADD THIS LINE
+    plot_D_Notes_shared = all_inputs$plot_D_Notes_shared %||% "",  # ADD THIS LINE
     bookmark_url = bookmark_url %||% ""
   )
   
@@ -584,6 +1037,177 @@ generate_log_entry <- function(all_inputs, format, bookmark_url) {
 # ────────────────────────────────────────────────────────────────
 
 # Generate input preview table data
+# Replace the get_plot_values function with this version that properly handles ~
+
+get_plot_values <- function(plot_type, i, input) {
+  Roman_numerals <- as.roman(1:10)
+  x_var <- input[[paste0(plot_type, "_x", i)]]
+  
+  # Helper to get annotation input or default - PROPERLY HANDLES ~
+  get_ann <- function(panel_pos, default = "") {
+    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
+    # If it's ~, return empty string without applying default
+    if (!is.null(val) && val == "~") return("")
+    # Otherwise, if null or empty, use default
+    if (is.null(val) || val == "") default else val
+  }
+  
+  # Special helper for reference label
+  get_ref_label <- function(panel_pos) {
+    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
+    # If it's ~, return empty string
+    if (!is.null(val) && val == "~") return("")
+    if (is.null(val)) "" else val
+  }
+  
+  # Common defaults using new hierarchy
+  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+  default_title <- paste0("Plot ", plot_letter, ".", Roman_numerals[i])
+  default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
+  default_ref <- paste0("@fig-", plot_letter, "-", i)
+  
+  # SWAPPED: Plot A now returns Plot B's structure (8 annotations, 4 plots)
+  if (plot_type == "plot_A") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
+      plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),
+      figOvCap = get_ann(8, default_figure)
+    )
+  } 
+  # SWAPPED: Plot B now returns Plot A's structure (7 annotations, table + 2 plots)
+  else if (plot_type == "plot_B") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
+      figOvCap = get_ann(7, default_figure)
+    )
+  } else if (plot_type == "plot_C") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      figOvCap = get_ann(6, default_figure) 
+    )
+  } else if (plot_type == "plot_D") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      figOvCap = get_ann(4, default_figure) 
+    )
+  }
+}
+
+# Update the collect_plot_inputs function to preserve ~ in the stored data
+collect_plot_inputs <- function(input, plot_type, n_plots) {
+  if (is.null(n_plots) || n_plots <= 0) return(list())
+  
+  inputs <- list()
+  Roman_numerals <- as.roman(1:10)
+  numerals <- 1:10
+  
+  for (i in 1:n_plots) {
+    # Base inputs
+    x_var_name <- paste0(plot_type, "_x", i)
+    
+    if (!is.null(input[[x_var_name]])) {
+      inputs[[x_var_name]] <- input[[x_var_name]]
+    }
+    
+    # Add annotation captions if this plot type has them
+    config <- PLOT_CONFIG[[plot_type]]
+    if (config$has_annotations) {
+      for (j in 1:config$num_annotations) {
+        ann_name <- paste0(plot_type, "_annotation_", i, "_", j)
+        ann_value <- input[[ann_name]]
+        
+        # Get the label for this annotation position
+        label <- config$display_labels[j]
+        
+        # Check if it's the ~ character - preserve it as-is
+        if (!is.null(ann_value) && ann_value == "~") {
+          inputs[[ann_name]] <- "~"  # Preserve the ~ marker
+          next  # Skip default processing
+        }
+        
+        # For Reference Label
+        if (label == "Reference Label") {
+          if (is.null(ann_value)) {
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_ref <- paste0("fig-", plot_letter, "-", numerals[i])
+            inputs[[ann_name]] <- default_ref
+          } else {
+            inputs[[ann_name]] <- ann_value
+          }
+        } else if (label == "Title") {
+          if (is.null(ann_value) || ann_value == "") {
+            label_clean <- gsub("[()]", "", config$label)
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_title <- paste0("Plot ", plot_letter, ".", Roman_numerals[i])
+            inputs[[ann_name]] <- default_title
+          } else {
+            inputs[[ann_name]] <- ann_value
+          }
+        } else if (label == "Subtitle") {
+          if (is.null(ann_value) || ann_value == "") {
+            default_subtitle <- paste0("Figure ", Roman_numerals[i], " Analysis")
+            inputs[[ann_name]] <- default_subtitle
+          } else {
+            inputs[[ann_name]] <- ann_value
+          }
+        } else if (grepl("Panel", label)) {
+          if (is.null(ann_value) || ann_value == "") {
+            panel_num <- gsub(".*Panel ([0-9]+).*", "\\1", label)
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_panel <- paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".", panel_num)
+            inputs[[ann_name]] <- default_panel
+          } else {
+            inputs[[ann_name]] <- ann_value
+          }
+        } else if (label == "Overall Figure") {
+          if (is.null(ann_value) || ann_value == "") {
+            plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+            default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
+            inputs[[ann_name]] <- default_figure
+          } else {
+            inputs[[ann_name]] <- ann_value
+          }
+        } else {
+          # For any other annotations
+          if (!is.null(ann_value)) {
+            inputs[[ann_name]] <- ann_value
+          }
+        }
+      }
+    }
+  }
+  
+  # Add shared notes
+  notes_name <- paste0(plot_type, "_Notes_shared")
+  if (!is.null(input[[notes_name]])) {
+    # Preserve ~ for notes as well
+    inputs[[notes_name]] <- input[[notes_name]]
+  }
+  
+  return(inputs)
+}
+
+# Update generate_input_preview_data to show ~ as blank in preview
 generate_input_preview_data <- function(input) {
   # Create summary data - only show if inputs actually exist
   summary_data <- data.frame(
@@ -636,6 +1260,10 @@ generate_input_preview_data <- function(input) {
           
           # Add shared notes
           shared_notes_var <- input[[paste0(plot_type, "_Notes_shared")]]
+          # Display ~ as blank in preview
+          if (!is.null(shared_notes_var) && shared_notes_var == "~") {
+            shared_notes_var <- "(blank)"
+          }
           if (!is.null(shared_notes_var) && shared_notes_var != "") {
             plot_details <- rbind(plot_details, data.frame(
               Setting = paste0(config$label, " - Notes"),
@@ -654,15 +1282,21 @@ generate_input_preview_data <- function(input) {
             # Add annotation captions if this plot type has them
             if (config$has_annotations) {
               for (j in 1:config$num_annotations) {
-                ann_var <- input[[paste0(plot_type, "_annotation_", j, "_", i)]]
+                ann_var <- input[[paste0(plot_type, "_annotation_", i, "_", j)]]
                 
-                # ← CHANGE: Use plot-specific labels from configuration
+                # Display ~ as (blank) in preview
+                display_value <- ann_var
+                if (!is.null(ann_var) && ann_var == "~") {
+                  display_value <- "(blank)"
+                }
+                
+                # Use plot-specific labels from configuration
                 annotation_labels <- config$display_labels
                 
                 if (!is.null(ann_var) && ann_var != "") {
                   plot_details <- rbind(plot_details, data.frame(
                     Setting = paste0(plot_label_clean, ".", i, " - ", annotation_labels[j]),
-                    Value = if(nchar(ann_var) > 50) paste0(substr(ann_var, 1, 50), "...") else ann_var,
+                    Value = if(nchar(display_value) > 50) paste0(substr(display_value, 1, 50), "...") else display_value,
                     stringsAsFactors = FALSE
                   ))
                 }
@@ -689,107 +1323,181 @@ generate_input_preview_data <- function(input) {
   return(final_data)
 }
 
+
 # ────────────────────────────────────────────────────────────────
-#### Plot Generation Functions for Updated UI ####
+#### Plot Generation Functions for Breast Cancer Data ####
 # ────────────────────────────────────────────────────────────────
 
-# Generate Plot A content with configuration
+# Generate Plot A content with breast cancer data
 generate_plot_A_content <- function(i, config, input) {
-  # Get current values using helper function
+  # Get current values
   values <- get_plot_values("plot_A", i, input)
   
-  # Create plots
-  dat <- mtcars |> filter(gear == values$x_var)
+  # Filter data by selected cohort
+  dat <- bc_data %>% filter(cohort == values$x_var)
   
-  plots <- create_plot_A_components(dat, i, values, input)
-  table_component <- create_table_component(dat, i, input)
+  # Use Plot B's component creation (4 plots, no table)
+  plots <- create_plot_A_components(dat, i, values)
   
-  # Combine with patchwork
-  combine_plot_A_components(plots, table_component, values$figOvCap,
-    values$title, values$subtitle)
+  # Use Plot B's combination method
+  combine_plot_A_components(plots, values)
 }
 
-# Generate Plot B content with configuration
+# Generate Plot B content with breast cancer data
+
 generate_plot_B_content <- function(i, config, input) {
-  # Get current values
+  # Get current values using helper function
   values <- get_plot_values("plot_B", i, input)
   
-  # Create the four plots for Plot B
-  dat <- mtcars |> filter(gear == values$x_var)
+  # Filter data by selected cohort
+  dat <- bc_data %>% filter(cohort == values$x_var)
   
-  plots <- create_plot_B_components(dat, i, values)  # ← CHANGE: Pass values
+  # Use Plot A's component creation (2 plots + table)
+  plots <- create_plot_B_components(dat, i, values, input)
   
-  # Combine with patchwork for Plot B layout
-  combine_plot_B_components(plots, values)  # ← CHANGE: Pass values instead of just title
+  # Pass plot_type to table creation
+  plot_type <- "plot_B"  # Set this so the table function knows which annotations to use
+  table_component <- create_table_component_A(dat, i, input)
+  
+  # Use Plot A's combination method
+  combine_plot_B_components(plots, table_component, values$figOvCap,
+    values$title, values$subtitle)
+}
+# Generate Plot C content with survival analysis
+generate_plot_C_content <- function(i, config, input) {
+  # Get current values using helper function
+  values <- get_plot_values("plot_C", i, input)
+  
+  # Create survival data with cohort filter (different seed for each plot)
+  surv_data <- create_survival_data(n = 150, seed = 123 + i, cohort_filter = values$x_var)
+  
+  plots <- create_plot_C_components(surv_data, i, values)
+  
+  # Combine with patchwork (no table for survival plots)
+  combine_plot_C_components(plots, values$figOvCap, values$title, values$subtitle)
+}
+
+# Generate Plot D content with Sankey diagram
+generate_plot_D_content <- function(i, config, input) {
+  # Get current values using helper function
+  values <- get_plot_values("plot_D", i, input)
+  
+  # Create Sankey data with cohort filter
+  sankey_data <- create_sankey_data(cohort_filter = values$x_var)
+  
+  # Create and return the Sankey plot
+  create_plot_D_components(sankey_data, i, values)
 }
 
 # Helper function to get plot values
-
 get_plot_values <- function(plot_type, i, input) {
   Roman_numerals <- as.roman(1:10)
   x_var <- input[[paste0(plot_type, "_x", i)]]
   
-  # Helper to get annotation input or default
-  get_ann <- function(pos, default = "") {
-    val <- input[[paste0(plot_type, "_annotation_", pos, "_", i)]]
+  # Helper to get annotation input or default - PROPERLY HANDLES ~
+  get_ann <- function(panel_pos, default = "") {
+    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
+    # If it's ~, return empty string without applying default
+    if (!is.null(val) && val == "~") return("")
+    # Otherwise, if null or empty, use default
     if (is.null(val) || val == "") default else val
   }
   
-  # Common defaults
-  label_clean <- gsub("[()]", "", PLOT_CONFIG[[plot_type]]$label)
-  default_title <- paste0(label_clean, ".", Roman_numerals[i])
-  default_figure <- paste0("Figure ", " (", Roman_numerals[i], ")")
-  default_ref <- paste0("@fig-", substr(plot_type, nchar(plot_type), nchar(plot_type)), "-", Roman_numerals[i])
+  # Special helper for reference label
+  get_ref_label <- function(panel_pos) {
+    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
+    # If it's ~, return empty string
+    if (!is.null(val) && val == "~") return("")
+    if (is.null(val)) "" else val
+  }
+  
+  # Common defaults using new hierarchy
+  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
+  default_title <- paste0("Plot ", plot_letter, ".", Roman_numerals[i])
+  default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
+  default_ref <- paste0("@fig-", plot_letter, "-", i)
   
   if (plot_type == "plot_A") {
     list(
       x_var = x_var,
-      figRef = if (get_ann(1) != "") paste0("@", gsub("[^a-zA-Z0-9]", "", get_ann(1))) else default_ref,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      tbl1Cap = get_ann(4, paste0("Table ", Roman_numerals[i], ".1")),
-      plot1Cap = get_ann(5, paste0("Panel ", Roman_numerals[i], ".1")),
-      plot2Cap = get_ann(6, paste0("Panel ", Roman_numerals[i], ".2")),
+      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
       figOvCap = get_ann(7, default_figure)
     )
   } else if (plot_type == "plot_B") {
     list(
       x_var = x_var,
-      figRef = if (get_ann(1) != "") paste0("@", gsub("[^a-zA-Z0-9]", "", get_ann(1))) else default_ref,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      plot1Cap = get_ann(4, paste0("Panel ", Roman_numerals[i], ".1")),
-      plot2Cap = get_ann(5, paste0("Panel ", Roman_numerals[i], ".2")),
-      plot3Cap = get_ann(6, paste0("Panel ", Roman_numerals[i], ".3")),
-      plot4Cap = get_ann(7, paste0("Panel ", Roman_numerals[i], ".4")),
+      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
+      plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),
       figOvCap = get_ann(8, default_figure)
+    )
+  } else if (plot_type == "plot_C") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
+      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      figOvCap = get_ann(6, default_figure) 
+    )
+  } else if (plot_type == "plot_D") {
+    list(
+      x_var = x_var,
+      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
+      title = get_ann(2, default_title),
+      subtitle = get_ann(3),
+      figOvCap = get_ann(4, default_figure) 
     )
   }
 }
 
-# Create plot components for Plot A
-create_plot_A_components <- function(dat, i, values, input) {
+
+# Create plot components for Plot A - Treatment Selection
+create_plot_B_components <- function(dat, i, values, input) {
   base_theme <- create_base_plot_theme()
   values <- get_plot_values("plot_A", i, input)
   
-  p1 <- ggplot(dat, aes(x = mpg)) +
+  # Panel 1: Time to Treatment Initiation
+  p1 <- ggplot(dat, aes(x = days_to_tx)) +
     geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
     base_theme +
     labs(
-      title = paste0("Distribution of MPG (", i, ")"), 
-      x = "MPG", 
-      y = "Frequency",
+      title = paste0("Days to Treatment Post-ESR1 Dx (", i, ")"), 
+      x = "Days from ESR1 Diagnosis", 
+      y = "Number of Patients",
       caption = values$plot1Cap 
     ) +
     theme(plot.margin = unit(c(0.8, 0.1, 0.1, 1), "cm"))
   
-  p2 <- ggplot(dat, aes(x = hp)) +
-    geom_histogram(fill = color_secondary, color = color_primary, alpha = 0.7, bins = 15) +
+  # Panel 2: Treatment Duration by Line
+  avg_duration <- dat %>%
+    group_by(treatment_line, therapy_type) %>%
+    summarise(avg_months = mean(time_to_ttd / 30.44, na.rm = TRUE), .groups = "drop")
+  
+  p2 <- ggplot(avg_duration, aes(x = factor(treatment_line), y = avg_months, fill = therapy_type)) +
+    geom_col(position = "dodge", color = "gray20", alpha = 0.8) +
+    scale_fill_manual(values = c(
+      "Chemotherapy" = "#BFD7EA",
+      "Endocrine" = "#9CBFD9",
+      "Targeted Agent" = "#7FA6C9",
+      "Immunotherapy" = "#5E8FBF"
+    )) +
     base_theme +
     labs(
-      title = paste0("Distribution of HP (", i, ")"), 
-      x = "HP", 
-      y = "Frequency",
+      title = paste0("Average Treatment Duration by Line (", i, ")"), 
+      x = "Treatment Line", 
+      y = "Average Duration (Months)",
+      fill = "Therapy Type",
       caption = values$plot2Cap 
     ) +
     theme(plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), "cm"))
@@ -797,57 +1505,194 @@ create_plot_A_components <- function(dat, i, values, input) {
   list(p1 = p1, p2 = p2)
 }
 
-# Create plot components for Plot B
-create_plot_B_components <- function(dat, i, values) {
+# Create plot components for Plot B - ESR1 Landscape
+create_plot_A_components <- function(dat, i, values) {
   base_theme <- create_base_plot_theme()
   
-  # Plot 1 - Use plot1Cap from annotations
-  p1 <- ggplot(dat, aes(x = mpg)) +
-    geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
+  # Plot 1 - ESR1 Expression Distribution
+  p1 <- ggplot(dat, aes(x = esr1_expression)) +
+    geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 20) +
     base_theme +
     labs(
       title = paste0("ESR1 Expression Distribution (", i, ")"), 
-      x = "Expression Level", 
+      x = "ESR1 Expression Level", 
       y = "Frequency",
-      caption = values$plot1Cap  # ← CHANGE: Use annotation caption
+      caption = values$plot1Cap
     ) +
     theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt"))
   
-  # Plot 2 - Use plot2Cap from annotations  
-  p2 <- ggplot(dat, aes(x = hp)) +
-    geom_histogram(fill = color_secondary, color = color_primary, alpha = 0.7, bins = 15) +
+  # Plot 2 - ESR1 Mutation Count
+  p2 <- ggplot(dat, aes(x = factor(esr1_mutations))) +
+    geom_bar(fill = color_secondary, color = color_primary, alpha = 0.7) +
     base_theme +
     labs(
-      title = paste0("ESR1 Mutation Frequency (", i, ")"), 
-      x = "Mutation Count", 
-      y = "Frequency",
-      caption = values$plot2Cap  # ← CHANGE: Use annotation caption
+      title = paste0("ESR1 Mutation Count (", i, ")"), 
+      x = "Number of ESR1 Mutations", 
+      y = "Number of Patients",
+      caption = values$plot2Cap
     ) +
     theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt"))
   
-  p3 <- ggplot(dat, aes(x = disp)) +
-    geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
+  # Plot 3 - Treatment Response by Line
+  p3 <- ggplot(dat, aes(x = factor(treatment_line), y = treatment_response)) +
+    geom_boxplot(fill = color_primary, alpha = 0.5) +
     base_theme +
     labs(
-      title = paste0("ESR1 Response Correlation (", i, ")"), 
-      x = "Response Score", 
-      y = "Frequency",
+      title = paste0("Treatment Response by Line (", i, ")"), 
+      x = "Treatment Line", 
+      y = "Response Score",
       caption = values$plot3Cap  
     ) +
     theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt"))
   
-  p4 <- ggplot(dat, aes(x = wt)) +
+  # Plot 4 - Biomarker Positivity Rate
+  p4 <- ggplot(dat, aes(x = biomarker_positivity)) +
     geom_histogram(fill = color_secondary, color = color_primary, alpha = 0.7, bins = 15) +
+    scale_x_continuous(labels = scales::percent_format()) +
     base_theme +
     labs(
-      title = paste0("ESR1 Diagnostic Accuracy (", i, ")"), 
-      x = "Accuracy Score", 
+      title = paste0("Biomarker Positivity Rate (", i, ")"), 
+      x = "Positivity Rate", 
       y = "Frequency",
       caption = values$plot4Cap  
     ) +
     theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt"))
 
   list(p1 = p1, p2 = p2, p3 = p3, p4 = p4)
+}
+
+# Create plot components for Plot C (Survival Analysis)
+create_plot_C_components <- function(surv_data, i, values) {
+  base_theme <- create_base_plot_theme()
+  
+  # Add cohort info to title if available
+  cohort_label <- if(!is.null(unique(surv_data$cohort)) && unique(surv_data$cohort) != "All") {
+    paste0(" - ", unique(surv_data$cohort))
+  } else {
+    ""
+  }
+  
+  # Create survival objects
+  surv_obj_treatment <- survfit(Surv(time, event) ~ treatment, data = surv_data)
+  surv_obj_esr1 <- survfit(Surv(time, event) ~ esr1_status, data = surv_data)
+  
+  # Plot 1 - Survival by Treatment
+  p1 <- ggsurvplot(
+    surv_obj_treatment,
+    data = surv_data,
+    conf.int = TRUE,
+    pval = TRUE,
+    risk.table = FALSE,
+    palette = c(color_primary, color_secondary),
+    ggtheme = base_theme,
+    title = paste0("PFS by Treatment Type (", i, ")", cohort_label),
+    xlab = "Time (months)",
+    ylab = "Progression-Free Survival",
+    legend.title = "Treatment",
+    legend.labs = c("Chemotherapy", "Endocrine + CDK4/6")
+  )$plot +
+    labs(caption = values$plot1Cap) +
+    theme(
+      plot.margin = unit(c(0.8, 0.1, 0.1, 1), "cm"),
+      plot.caption = element_text(size = 15, margin = margin(t = 2, b = 2, unit = "pt"))
+    )
+  
+  # Plot 2 - Survival by ESR1 Status
+  p2 <- ggsurvplot(
+    surv_obj_esr1,
+    data = surv_data,
+    conf.int = TRUE,
+    pval = TRUE,
+    risk.table = FALSE,
+    palette = c("#2E8B57", "#CD853F"),
+    ggtheme = base_theme,
+    title = paste0("PFS by ESR1 Status (", i, ")", cohort_label),
+    xlab = "Time (months)",
+    ylab = "Progression-Free Survival",
+    legend.title = "ESR1 Status",
+    legend.labs = c("ESR1-", "ESR1+")
+  )$plot +
+    labs(caption = values$plot2Cap) +
+    theme(
+      plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), "cm"),
+      plot.caption = element_text(size = 15, margin = margin(t = 2, b = 2, unit = "pt"))
+    )
+  
+  list(p1 = p1, p2 = p2)
+}
+
+# Create plot components for Plot D (Treatment Pathways)
+create_plot_D_components <- function(sankey_data, i, values) {
+  # Add cohort info to title if available
+  cohort_label <- if(!is.null(sankey_data$cohort)) {
+    paste0(" - ", sankey_data$cohort)
+  } else {
+    ""
+  }
+  
+  # Create the Sankey plot using plotly
+  p <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+    valueformat = ".0f",
+    valuesuffix = " patients",
+    
+    node = list(
+      label = sankey_data$nodes$name,
+      color = sankey_data$node_colors,
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+    
+    link = list(
+      source = sankey_data$links$source,
+      target = sankey_data$links$target,
+      value = sankey_data$links$value,
+      label = sankey_data$links$label,
+      color = 'rgba(0,0,0,0.2)'  # Semi-transparent links
+    )
+  )
+  
+  # Apply layout with consistent styling
+  p <- p %>% layout(
+    title = list(
+      text = paste0("<b>", values$title, "</b><br>",
+                    "<span style='font-size:14px'>", values$subtitle, "</span><br>",
+                    "<span style='font-size:16px'>ESR1+ Treatment Pathway (", i, ")", cohort_label, "</span>"),
+      font = list(size = 18, color = color_primary),
+      x = 0.5,
+      xanchor = 'center'
+    ),
+    font = list(
+      size = 12,
+      color = color_fg,
+      family = "Helvetica Neue"
+    ),
+    xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+    yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+    plot_bgcolor = color_panel_bg,
+    paper_bgcolor = color_panel_bg,
+    margin = list(l = 20, r = 20, t = 100, b = 80),
+    annotations = list(
+      list(
+        text = values$figOvCap,
+        showarrow = FALSE,
+        xref = 'paper',
+        yref = 'paper',
+        x = 0.9,
+        y = -0.1,
+        xanchor = 'right',
+        yanchor = 'top',
+        font = list(size = 17, color = "#C0C0C0")
+      )
+    )
+  )
+  
+  return(p)
 }
 
 # Create base plot theme
@@ -860,23 +1705,44 @@ create_base_plot_theme <- function() {
       text = element_text(color = color_fg),
       axis.text = element_text(color = color_fg),
       axis.title = element_text(color = color_fg),
-      plot.title = element_text(face = "bold", color = color_primary)
+      plot.title = element_text(face = "bold",size = 18, color = color_primary)
     )
 }
 
-# Create table component
-create_table_component <- function(dat, i, input) {
-  # Get current values using helper function
-  values <- get_plot_values("plot_A", i, input)
+# Create table component for breast cancer data
+create_table_component_A <- function(dat, i, input) {
+  # MODIFIED: Determine which plot type is actually calling this
+  # Check if we're being called from plot_A or plot_B
+  calling_plot_type <- if (exists("plot_type", parent.frame())) {
+    get("plot_type", parent.frame())
+  } else {
+    # Try to infer from the input structure
+    if (!is.null(input$plot_B_annotation_1_4) && grepl("Panel", input$plot_B_annotation_1_4)) {
+      "plot_B"
+    } else {
+      "plot_A"
+    }
+  }
+  
+  # Get current values using the appropriate plot type
+  values <- get_plot_values(calling_plot_type, i, input)
+  
+  # Create summary table with time to treatment categories
+  bins <- c(-Inf, 7, 14, 21, 28, 35, 42, Inf)
+  labels <- c("≤7 days", "8-14 days", "15-21 days", "22-28 days", 
+              "29-35 days", "36-42 days", "≥43 days")
+  
   table_data <- dat %>%
-    select(mpg, cyl, hp) %>%
-    head(5) %>%
-    round(2)
+    mutate(period = cut(days_to_tx, breaks = bins, labels = labels, right = TRUE)) %>%
+    group_by(period) %>%
+    summarise(
+      n = n(),
+      pct_in_period = round(100 * n() / nrow(dat), 1)
+    ) %>%
+    arrange(factor(period, levels = labels)) %>%
+    mutate(cumulative_pct = round(cumsum(pct_in_period), 1))
   
-  table_data <- cbind(Car = rownames(mtcars)[1:5], table_data) %>%
-    as.data.frame()
-  
-  gt_tab <- create_styled_gt_table(table_data, i)
+  gt_tab <- create_styled_gt_table_B(table_data, i)
   
   wrap_table(gt_tab, panel = "full", space = "fixed") +
     labs(caption = values$tbl1Cap) + 
@@ -891,11 +1757,16 @@ create_table_component <- function(dat, i, input) {
     )
 }
 
-# Create styled GT table
-create_styled_gt_table <- function(table_data, i) {
+create_styled_gt_table_B <- function(table_data, i) {
   table_data %>%
     gt() %>%
-    tab_header(title = paste0("Sample Data (", i, ")")) %>%
+    tab_header(title = paste0("Time to Treatment Post-ESR1 Dx (B.", i, ")")) %>%
+    cols_label(
+      period = "Time Period",
+      n = "Patients",
+      pct_in_period = "% in Period",
+      cumulative_pct = "Cumulative %"
+    ) %>%
     tab_options(
       table.width = pct(100),
       table.layout = "fixed",
@@ -906,34 +1777,52 @@ create_styled_gt_table <- function(table_data, i) {
     ) %>%
     tab_style(
       style = list(
-        cell_text(size = px(20), weight = "normal"),
+        cell_text(size = px(18), weight = "normal"),
         cell_borders(sides = c("left", "right"), color = "transparent", weight = px(15))
       ),
       locations = cells_body()
     ) %>%
     tab_style(
       style = list(
-        cell_text(size = px(22), weight = "bold"),
+        cell_text(size = px(19), weight = "bold"),
         cell_borders(sides = c("left", "right"), color = "transparent", weight = px(15))
       ),
       locations = cells_column_labels()
     ) %>%
     tab_style(
-      style = cell_text(size = px(24), weight = "bold", color = "#cc4c02"),
+      style = cell_text(size = px(22), weight = "bold", color = "#cc4c02"),
       locations = cells_title()
     ) %>%
     cols_width(
-      Car ~ px(200),      
-      mpg ~ px(150),
-      cyl ~ px(150),
-      hp ~ px(150)
+      period ~ px(180),      
+      n ~ px(120),
+      pct_in_period ~ px(150),
+      cumulative_pct ~ px(150)
     )
 }
 
-# Combine plot components for Plot A
-combine_plot_A_components <- function(plots, table_component, overall_caption,
+# Combine plot components (keeping same structure as original)
+combine_plot_C_components <- function(plots, overall_caption, title, subtitle) {
+  theme_border <- create_border_theme_C()
+  
+  plots$p1 / plots$p2 + 
+    plot_annotation(
+      title = title,
+      subtitle = subtitle,
+      caption = overall_caption,
+      tag_levels = '1',
+      tag_suffix = ")",
+      theme = theme_border
+    ) +
+    plot_layout(
+      heights = c(1, 1),
+      guides = "collect"
+    )
+}
+
+combine_plot_B_components <- function(plots, table_component, overall_caption,
     title, subtitle) {
-  theme_border <- create_border_theme_A()
+  theme_border <- create_border_theme_B()
   
   (table_component + plots$p1) / plots$p2 + 
     plot_annotation(
@@ -950,16 +1839,16 @@ combine_plot_A_components <- function(plots, table_component, overall_caption,
     )
 }
 
-# Combine plot components for Plot B
-combine_plot_B_components <- function(plots, values) {  # ← CHANGE: Accept values parameter
-  theme_border <- create_border_theme_B()
+combine_plot_A_components <- function(plots, values) {
+  theme_border <- create_border_theme_A()
   
   plots$p1 / (plots$p2 + (plots$p3 / plots$p4)) + 
     plot_annotation(
-      title = values$title,      # ← CHANGE: Use annotation title
-      subtitle = values$subtitle, # ← CHANGE: Use annotation subtitle
-      caption = values$figOvCap,  # ← CHANGE: Use annotation overall caption
-      tag_levels = 'A', 
+      title = values$title,
+      subtitle = values$subtitle,
+      caption = values$figOvCap,
+      tag_levels = '1',
+      tag_suffix = ")",
       theme = theme_border
     ) +
     plot_layout(
@@ -968,8 +1857,56 @@ combine_plot_B_components <- function(plots, values) {  # ← CHANGE: Accept val
     )
 }
 
-# Create border theme for Plot A
+# Border themes (keeping same as original)
 create_border_theme_A <- function() {
+  theme_void() +
+    theme(
+      plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
+      plot.title = element_text(
+        size = 18, hjust = 0.5, face = "bold", family = "Helvetica Neue",
+        margin = margin(t = 15, b = 0, unit = "pt")
+      ),
+      plot.subtitle = element_text(
+        size = 16, hjust = 0.5, family = "Helvetica Neue",
+        margin = margin(t = 0, b = 0, unit = "pt") 
+      ),
+      plot.caption = element_text(
+        size = 17, colour = "#C0C0C0", hjust = 0.9,
+        margin = margin(t = 10, b = 55, unit = "pt")
+      ),
+      plot.tag = element_text(
+        size = 18, face = "bold", color = "#cc4c02"
+      ),
+      plot.margin = margin(t = 10, r = 5, b = 15, l = 5, unit = "pt")  # Changed from t = 15 to t = 10
+    )
+}
+
+
+create_border_theme_B <- function() {
+  theme_void() + 
+    theme(
+      plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
+      plot.title = element_text(
+        size = 18, hjust = 0.5, face = "bold", family = "Helvetica Neue",
+        margin = margin(t = 15, b = 10, unit = "pt")
+      ),
+      plot.subtitle = element_text(
+        size = 16, hjust = 0.5, family = "Helvetica Neue",
+        margin = margin(t = 0, b = 85, unit = "pt")  # Changed from b = 10 to b = 85 (Plot A's value)
+      ),
+      plot.caption = element_text(
+        size = 17, colour = "#C0C0C0", hjust = 0.9,
+        margin = margin(t = 10, b = 55, unit = "pt")
+      ),
+      plot.tag = element_text(
+        size = 18, face = "bold", color = "#cc4c02"
+      ),
+      plot.margin = margin(t = 15, r = 5, b = 15, l = 5, unit = "pt")  # Changed from t = 10 to t = 15
+    )
+}
+
+
+create_border_theme_C <- function() {
   theme_void() + 
     theme(
       plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
@@ -992,27 +1929,26 @@ create_border_theme_A <- function() {
     )
 }
 
-# Create border theme for Plot B
-create_border_theme_B <- function() {
-  theme_void() +  # ← CHANGE: Use theme_void like Plot A
+create_border_theme_D <- function() {
+  theme_void() + 
     theme(
       plot.background = element_rect(fill = NA, colour = '#f4dbcc', size = 1),
       plot.title = element_text(
-        size = 18, hjust = 0.5, face = "bold", family = "Helvetica Neue",  # ← CHANGE: Match Plot A
+        size = 18, hjust = 0.5, face = "bold", family = "Helvetica Neue",
         margin = margin(t = 15, b = 10, unit = "pt")
       ),
-      plot.subtitle = element_text(  # ← ADD: Subtitle support
+      plot.subtitle = element_text(
         size = 16, hjust = 0.5, family = "Helvetica Neue",
-        margin = margin(t = 0, b = 10, unit = "pt")
+        margin = margin(t = 0, b = 85, unit = "pt")
       ),
-      plot.caption = element_text(  # ← ADD: Caption support
+      plot.caption = element_text(
         size = 17, colour = "#C0C0C0", hjust = 0.9,
         margin = margin(t = 10, b = 55, unit = "pt")
       ),
       plot.tag = element_text(
-        size = 18, face = "bold", color = "#cc4c02"  # ← CHANGE: Match Plot A
+        size = 18, face = "bold", color = "#cc4c02"
       ),
-      plot.margin = margin(t = 10, r = 5, b = 15, l = 5, unit = "pt")  # ← CHANGE: Match Plot A
+      plot.margin = margin(t = 15, r = 5, b = 15, l = 5, unit = "pt")
     )
 }
 
@@ -1020,7 +1956,6 @@ create_border_theme_B <- function() {
 #### Color and Style Constants ####
 # ────────────────────────────────────────────────────────────────
 
-# Define colors and fonts (these should be defined in your main file, but including here for completeness)
 color_bg <- "#F8F9FA"
 color_panel_bg <- "#FFFFFF"
 color_outer_bg <- "#ECECEC"
@@ -1053,7 +1988,7 @@ create_plot_tabs <- function() {
           h4(paste("Inputs for", config$label), class = "text-primary"),
           numericInput(
             paste0(plot_type, "_n"), 
-            paste0("Number of plots (up to ", config$max_plots, "):"), 
+            paste0("Number of Figures per Plot (up to ", config$max_plots, "):"), 
             value = 1, 
             min = 1, 
             max = config$max_plots
@@ -1083,7 +2018,7 @@ create_nav_items <- function() {
       br(),
       h4("Tips", class = "text-primary"),
       tags$ul(
-        tags$li("Plots will be arranged in the report as they appear, top to bottom in the dashboard"),
+        tags$li("Figures will be arranged in the report as they appear, top to bottom in the dashboard"),
         tags$li("You can save your configuration with a bookmark url by using the 'Update & Copy Bookmark URL' button in the section 'Report Export'")
       ),
       
@@ -1343,80 +2278,19 @@ create_report_log_tab <- function() {
 # Main UI function
 ui <- function(request) {
   fluidPage(
+    includeCSS("www/styles.css"),
+    # Add this line to ensure plotly JavaScript is loaded:
+    plotlyOutput("dummy_plotly_to_load_js", height = "0px"),
+
     tags$head(
       tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css")
     ),
     # Add JavaScript for clipboard functionality
     tags$head(
       tags$link(rel = "icon", href = "svg/Blood_Drop_Full_Color.svg", type = "image/svg+xml"),
-      tags$link(rel = "stylesheet", type = "text/css", href = "css/styles.css"),
-      # Add collapsible carrot for Plot Annotations 
-      tags$script(HTML(
-        "$(document).on('shown.bs.collapse', '.collapse', function() {
-          var icon = $(this).prev().find('i');
-          icon.removeClass('fa-caret-right').addClass('fa-caret-down');
-        }).on('hidden.bs.collapse', '.collapse', function() {
-          var icon = $(this).prev().find('i');
-          icon.removeClass('fa-caret-down').addClass('fa-caret-right');
-        });"
-      )),
-      # ADD CLIPBOARD JAVASCRIPT
-      tags$script(HTML("
-        // Enhanced clipboard functionality with better error handling
-Shiny.addCustomMessageHandler('copyToClipboard', function(text) {
-  console.log('Attempting to copy to clipboard:', text);
-  
-  if (navigator.clipboard && window.isSecureContext) {
-    // Use modern clipboard API if available
-    navigator.clipboard.writeText(text).then(function() {
-      console.log('✅ Text copied to clipboard successfully using modern API');
-    }).catch(function(err) {
-      console.error('❌ Modern clipboard API failed:', err);
-      // Fallback to older method
-      fallbackCopyTextToClipboard(text);
-    });
-  } else {
-    console.log('⚠️ Modern clipboard API not available, using fallback');
-    // Fallback for older browsers or non-secure contexts
-    fallbackCopyTextToClipboard(text);
-  }
-});
-
-function fallbackCopyTextToClipboard(text) {
-  console.log('Using fallback clipboard method');
-  var textArea = document.createElement('textarea');
-  textArea.value = text;
-  textArea.style.top = '0';
-  textArea.style.left = '0';
-  textArea.style.position = 'fixed';
-  textArea.style.width = '2em';
-  textArea.style.height = '2em';
-  textArea.style.padding = '0';
-  textArea.style.border = 'none';
-  textArea.style.outline = 'none';
-  textArea.style.boxShadow = 'none';
-  textArea.style.background = 'transparent';
-  
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-  
-  try {
-    var successful = document.execCommand('copy');
-    if (successful) {
-      console.log('✅ Fallback: Copying text command was successful');
-    } else {
-      console.log('❌ Fallback: Copying text command was unsuccessful');
-      alert('Copy failed. Please manually copy the URL from the browser address bar.');
-    }
-  } catch (err) {
-    console.error('❌ Fallback: Oops, unable to copy', err);
-    alert('Copy failed. Please manually copy the URL from the browser address bar.');
-  }
-  
-  document.body.removeChild(textArea);
-}
-      "))
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+      # Add collapsible carrot for Plot Annotations & CLIPBOARD 
+      tags$script(src = "app.js")
     ),
     
     # Navigation bar with dynamic content
@@ -1435,87 +2309,7 @@ function fallbackCopyTextToClipboard(text) {
       list(
         tags$head(
           tags$style(HTML("
-            /* Your existing responsive CSS... */
-            @media (min-width: 768px) {
-              .navbar { 
-                 /* align-items: center !important; */
-                display: flex !important;
-              }
-              .navbar .container-fluid {
-                display: flex !important;
-                align-items: center !important;
-              }
-              .navbar-header { 
-                display: flex !important; 
-                /* align-items: center !important; */
-                float: left !important;
-              }
-              .navbar-collapse { 
-                display: flex !important; 
-                /* align-items: center !important; */
-                float: right !important;
-              }
-              .navbar-nav { 
-                display: flex !important; 
-                /* align-items: center !important; */
-                margin: 0 !important;
-              }
-              .navbar-nav > li > a { 
-                font-size: 16px !important; 
-                padding: 15px !important;
-                display: flex !important;
-                align-items: center !important;
-              }
-              .navbar-brand {
-                font-size: 20px !important;
-                padding: 15px !important;
-                display: flex !important;
-                align-items: center !important;
-              }
-            }
-            
-            @media (max-width: 767px) {
-              .navbar-header {
-                float: left !important;
-                width: 100% !important;
-              }
-              .navbar-toggle {
-                display: block !important;
-                float: right !important;
-                margin-right: 15px !important;
-              }
-              .navbar-collapse {
-                display: none !important;
-                width: 100% !important;
-                clear: both !important;
-              }
-              .navbar-collapse.in {
-                display: block !important;
-              }
-              .navbar-nav {
-                margin: 0 !important;
-                float: none !important;
-              }
-              .navbar-nav > li {
-                float: none !important;
-              }
-              .navbar-nav > li > a {
-                padding: 10px 15px !important;
-              }
-            }
-            
-            /* Active tab styling - choose your preferred option */
-            .navbar-nav > li.active > a {
-              background-color: transparent !important;
-              border-bottom: 3px solid #cc4c02 !important;
-              color: #cc4c02 !important;
-            }
-            
-            .navbar-nav > li > a:hover,
-            .navbar-nav > li > a:focus {
-              background-color: rgba(204, 76, 2, 0.1) !important;
-              color: #cc4c02 !important;
-            }
+            /* Your existing styles here... */
           "))
         )
       ),
@@ -1531,7 +2325,7 @@ function fallbackCopyTextToClipboard(text) {
 # ────────────────────────────────────────────────────────────────
 
 server <- function(input, output, session) {
-  
+
   # DEBUG FUNCTION (keeping your original)
   safe_showNotification <- function(message, type = "default", duration = 5, ...) {
     cat("DEBUG: showNotification called with message:", message, "\n")
@@ -1566,28 +2360,13 @@ server <- function(input, output, session) {
   # ────────────────────────────────────────────────────────────────
   
   # Generate input and output UI renders for all configured plot types
-  for (plot_type in names(PLOT_CONFIG)) {
-    local({
-      my_plot_type <- plot_type
-      config <- PLOT_CONFIG[[my_plot_type]]
-      
-      # Create input UI render function
-      output[[paste0(my_plot_type, "_inputs_ui")]] <- renderUI({
-        req(input[[paste0(my_plot_type, "_n")]])
-        create_plot_ui_config(my_plot_type, input[[paste0(my_plot_type, "_n")]], isolate(reactiveValuesToList(input)))
-      })
-      
-      # Create output UI render function
-      output[[paste0(my_plot_type, "_outputs_ui")]] <- renderUI({
-        req(input[[paste0(my_plot_type, "_n")]])
-        
-        lapply(1:input[[paste0(my_plot_type, "_n")]], function(i) {
-          plotOutput(paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", i), 
-                    height = config$height, width = "100%")
-        })
-      })
-    })
-  }
+  generate_ui_renders(input, output, session)
+# Force all plot UIs to render even when hidden
+for (plot_type in names(PLOT_CONFIG)) {
+  outputOptions(output, paste0(plot_type, "_inputs_ui"), suspendWhenHidden = FALSE)
+  outputOptions(output, paste0(plot_type, "_outputs_ui"), suspendWhenHidden = FALSE)
+}
+
   
   # ────────────────────────────────────────────────────────────────
   #### Crew Controller Setup (keeping your original) ####
@@ -1677,35 +2456,35 @@ server <- function(input, output, session) {
   
   # Track text inputs
   text_and_dropdown_inputs <- reactive({
-    all_vals <- list()
+  all_vals <- list()
+  
+  # Collect text inputs for all configured plot types
+  for (plot_type in names(PLOT_CONFIG)) {
+    n_plots <- input[[paste0(plot_type, "_n")]]
     
-    # Collect text inputs for all configured plot types
-    for (plot_type in names(PLOT_CONFIG)) {
-      n_plots <- input[[paste0(plot_type, "_n")]]
+    if (!is.null(n_plots) && n_plots > 0) {
+      config <- PLOT_CONFIG[[plot_type]]
       
-      if (!is.null(n_plots) && n_plots > 0) {
-        config <- PLOT_CONFIG[[plot_type]]
-        
-        for (i in 1:n_plots) {
-          x_var_name <- paste0(plot_type, "_x", i)
-          all_vals[[x_var_name]] <- input[[x_var_name]]
-          # Add annotation captions if this plot type has them
-          if (config$has_annotations) {
-            for (j in 1:config$num_annotations) {
-              ann_name <- paste0(plot_type, "_annotation_", j, "_", i)
-              all_vals[[ann_name]] <- input[[ann_name]]
-            }
+      for (i in 1:n_plots) {
+        x_var_name <- paste0(plot_type, "_x", i)
+        all_vals[[x_var_name]] <- input[[x_var_name]]
+        # Add annotation captions if this plot type has them
+        if (config$has_annotations) {
+          for (j in 1:config$num_annotations) {
+            ann_name <- paste0(plot_type, "_annotation_", i, "_", j)  # FIXED: i=figure, j=panel
+            all_vals[[ann_name]] <- input[[ann_name]]
           }
         }
-        
-        # Add shared notes
-        notes_name <- paste0(plot_type, "_Notes_shared")
-        all_vals[[notes_name]] <- input[[notes_name]]
       }
+      
+      # Add shared notes
+      notes_name <- paste0(plot_type, "_Notes_shared")
+      all_vals[[notes_name]] <- input[[notes_name]]
     }
-    
-    return(all_vals)
-  })
+  }
+  
+  return(all_vals)
+})
   
   # Debounced versions
   inputs_stable_debounced <- debounce(inputs_to_track_stable, INPUT_TRACKING_CONFIG$debounce_stable)
@@ -1744,45 +2523,53 @@ server <- function(input, output, session) {
   #### Preload Reports with Configuration ####
   # ────────────────────────────────────────────────────────────────
   
-  # Function to parse URL parameters (keeping your original)
-  parseBookmarkURL <- function(url) {
-    if (is.null(url) || url == "" || !grepl("\\?", url)) {
-      return(list())
-    }
-    
-    query_string <- sub(".*\\?", "", url)
-    params <- strsplit(query_string, "&")[[1]]
-    param_list <- list()
-    
-    for (param in params) {
-      if (grepl("=", param)) {
-        parts <- strsplit(param, "=")[[1]]
-        if (length(parts) == 2) {
-          key <- URLdecode(parts[1])
-          value <- URLdecode(parts[2])
-          value <- gsub('^"|"$', '', value)
-          
-          if (grepl("^[0-9]+$", value)) {
-            value <- as.numeric(value)
-          }
-          
+# Update the parseBookmarkURL function to better handle empty strings
+parseBookmarkURL <- function(url) {
+  if (is.null(url) || url == "" || !grepl("\\?", url)) {
+    return(list())
+  }
+  
+  query_string <- sub(".*\\?", "", url)
+  params <- strsplit(query_string, "&")[[1]]
+  param_list <- list()
+  
+  for (param in params) {
+    if (grepl("=", param)) {
+      parts <- strsplit(param, "=")[[1]]
+      if (length(parts) == 2) {
+        key <- URLdecode(parts[1])
+        value <- URLdecode(parts[2])
+        value <- gsub('^"|"$', '', value)
+        
+        # Special handling for empty strings - they come as %22%22 in URLs
+        if (value == "" || value == '""') {
+          param_list[[key]] <- ""
+        } else if (grepl("^[0-9]+$", value)) {
+          value <- as.numeric(value)
+          param_list[[key]] <- value
+        } else {
           param_list[[key]] <- value
         }
       }
     }
-    
-    return(param_list)
   }
   
-  # Simplified preload function using configuration
-  # Fixed loadPresetReport function that allows editing after loading
-# Simpler approach: Store preset data and apply when UI is ready
+  return(param_list)
+}
+ 
+# Also update your loadPresetReport function to work with this approach
+# Also update your loadPresetReport function to work with this approach
 loadPresetReport <- function(preset_url) {
   parsed <- parseBookmarkURL(preset_url)
   extracted <- extractReportParams(parsed)
   
   if (length(extracted) > 0) {
-    # Update metadata inputs first
+    # Clear any existing preset data first
+    pending_preset_data(NULL)
+    preset_loading_stage("idle")
+    preset_retry_count(0)  # Reset retry counter
+    
+    # Update metadata inputs first (these don't need to wait)
     metadata_updates <- list(
       list(name = "title", value = extracted$title),
       list(name = "subtitle", value = extracted$subtitle),
@@ -1803,54 +2590,104 @@ loadPresetReport <- function(preset_url) {
       }
     }
     
-    # Store the extracted values in a reactive value for later use
+    # Store the extracted values for the observer to process
     pending_preset_data(extracted)
   }
 }
+  
+# Add these reactive values at the top with your other reactive values
+pending_preset_data <- reactiveVal(NULL)  
+preset_loading_stage <- reactiveVal("idle")
+preset_retry_count <- reactiveVal(0)
+max_retries <- 50
 
-# Add this reactive value to your server function (put it near the top with other reactive values)
-pending_preset_data <- reactiveVal(NULL)
-
-# Add this observer to your server function (put it with other observers)
-# This observer watches for UI changes and applies preset data when UI is ready
+# Main observer for preset loading
 observe({
   preset_data <- pending_preset_data()
+  stage <- preset_loading_stage()
+
+  # Add debug logging
+  cat("Observer running - Stage:", stage, "Data exists:", !is.null(preset_data), "\n")
   
-  if (!is.null(preset_data)) {
-    # Try to apply preset data for each plot type
+  if (is.null(preset_data)) {
+    preset_retry_count(0)
+    return()
+  }
+  
+  if (preset_retry_count() > max_retries) {
+    # Too many retries, give up
+    showNotification("Failed to load preset data - please navigate to the Plots tab and try again", type = "error")
+    pending_preset_data(NULL)
+    preset_loading_stage("idle")
+    preset_retry_count(0)
+    return()
+  }
+  
+  if (stage == "idle") {
+    cat("Starting preset loading...\n")
+    preset_loading_stage("loading")
+    preset_retry_count(preset_retry_count() + 1)
+    
+    # Update plot numbers
     for (plot_type in names(PLOT_CONFIG)) {
-      config <- PLOT_CONFIG[[plot_type]]
-      n_plots <- input[[paste0(plot_type, "_n")]]
-      
+      n_param <- paste0(plot_type, "_n")
+      if (n_param %in% names(preset_data) && !is.na(preset_data[[n_param]])) {
+        cat("Updating", n_param, "to", preset_data[[n_param]], "\n")
+        updateNumericInput(session, n_param, value = preset_data[[n_param]])
+      }
+    }
+    
+    preset_loading_stage("numbers_updated")
+    invalidateLater(200, session)
+    
+  } else if (stage == "numbers_updated") {
+    cat("Checking if UI is ready... Retry count:", preset_retry_count(), "\n")
+    
+    # Check if all UI elements are ready
+    all_ready <- TRUE
+    ui_missing <- c()
+    
+    for (plot_type in names(PLOT_CONFIG)) {
+      n_plots <- preset_data[[paste0(plot_type, "_n")]]
       if (!is.null(n_plots) && n_plots > 0) {
-        # Check if UI is ready for this plot type by checking if first input exists
-        first_x_param <- paste0(plot_type, "_x1")
+        for (i in 1:n_plots) {
+          x_input_name <- paste0(plot_type, "_x", i)
+          if (is.null(input[[x_input_name]])) {
+            cat("UI not ready - missing:", x_input_name, "\n")
+            all_ready <- FALSE
+            ui_missing <- c(ui_missing, x_input_name)
+            break
+          }
+        }
+      }
+      if (!all_ready) break
+    }
+    
+    if (all_ready) {
+      cat("UI is ready, applying preset values...\n")
+      
+      # CRITICAL: Apply all preset values here
+      for (plot_type in names(PLOT_CONFIG)) {
+        config <- PLOT_CONFIG[[plot_type]]
+        n_plots <- preset_data[[paste0(plot_type, "_n")]]
         
-        if (!is.null(input[[first_x_param]])) {
-          # UI is ready, apply preset data for this plot type
+        if (!is.null(n_plots) && n_plots > 0) {
           for (i in 1:n_plots) {
             # Update X variables
             x_param <- paste0(plot_type, "_x", i)
             if (x_param %in% names(preset_data) && !is.na(preset_data[[x_param]])) {
-              current_value <- input[[x_param]]
-              preset_value <- preset_data[[x_param]]
-              # Only update if current value is different from preset value
-              if (is.null(current_value) || current_value != preset_value) {
-                updateSelectInput(session, x_param, selected = preset_value)
-              }
+              cat("Updating", x_param, "to", preset_data[[x_param]], "\n")
+              updateSelectInput(session, x_param, selected = preset_data[[x_param]])
             }
             
             # Update annotation inputs if this plot type has them
             if (config$has_annotations) {
               for (j in 1:config$num_annotations) {
-                ann_param <- paste0(plot_type, "_annotation_", j, "_", i)
+                ann_param <- paste0(plot_type, "_annotation_", i, "_", j)
+                
                 if (ann_param %in% names(preset_data) && !is.na(preset_data[[ann_param]])) {
-                  current_value <- input[[ann_param]]
-                  preset_value <- preset_data[[ann_param]]
-                  # Only update if current value is different from preset value
-                  if (is.null(current_value) || current_value != preset_value) {
-                    updateTextInput(session, ann_param, value = preset_value)
-                  }
+                  cat("Updating", ann_param, "\n")
+                  updateTextInput(session, ann_param, value = preset_data[[ann_param]])
                 }
               }
             }
@@ -1859,51 +2696,64 @@ observe({
           # Update shared notes
           notes_param <- paste0(plot_type, "_Notes_shared")
           if (notes_param %in% names(preset_data) && !is.na(preset_data[[notes_param]])) {
-            current_value <- input[[notes_param]]
-            preset_value <- preset_data[[notes_param]]
-            # Only update if current value is different from preset value
-            if (is.null(current_value) || current_value != preset_value) {
-              updateTextAreaInput(session, notes_param, value = preset_value)
-            }
+            cat("Updating", notes_param, "\n")
+            updateTextAreaInput(session, notes_param, value = preset_data[[notes_param]])
           }
         }
       }
-    }
-    
-    # Check if all plot types have been processed
-    all_processed <- TRUE
-    for (plot_type in names(PLOT_CONFIG)) {
-      n_plots <- input[[paste0(plot_type, "_n")]]
-      if (!is.null(n_plots) && n_plots > 0) {
-        first_x_param <- paste0(plot_type, "_x1")
-        if (is.null(input[[first_x_param]])) {
-          all_processed <- FALSE
-          break
-        }
-      }
-    }
-    
-    # If all plot types have been processed, clear the pending data
-    if (all_processed) {
+      
+      # Clear everything after successful loading
+      cat("Preset loading complete!\n")
       pending_preset_data(NULL)
+      preset_loading_stage("idle")
+      preset_retry_count(0)
+      
+      # Show success notification
+      showNotification("Preset data loaded successfully!", type = "message", duration = 3)
+      
+    } else {
+      # Not ready yet
+      if (preset_retry_count() == 10 && length(ui_missing) > 0) {
+        # Show a helpful message after a few retries
+        showNotification(
+          "Loading preset data... Please navigate to the Plots tab to complete loading.",
+          type = "message",
+          duration = 10
+        )
+      }
+      
+      # Increment retry and check again
+      cat("UI not ready, will retry...\n")
+      preset_retry_count(preset_retry_count() + 1)
+      invalidateLater(200, session)
     }
   }
 })
   
-  # Preload report observers (keeping your original button IDs)
-  observeEvent(input$load_basic_report, {
-    preset_url <- "http://127.0.0.1:7931/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Selection%20(A)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=2&plot_B_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Great%20Report%22&subtitle=%22With%20lots%20of%20plots%22&name=%22Johny%20Cash%22&plot_A_x1=3&plot_A_x2=4&plot_B_x1=3&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_2_1=%22Treatment%20Analysis%20Plot%201%22&plot_A_annotation_3_1=%22Analyzing%20treatment%20effectiveness%22&plot_A_annotation_4_1=%22Summary%20Statistics%20Table%22&plot_A_annotation_5_1=%22Distribution%20Plot%22&plot_A_annotation_6_1=%22Correlation%20Plot%22&plot_A_annotation_7_1=%22Complete%20Treatment%20Analysis%22&plot_A_annotation_1_2=%22fig-A-2%22&plot_A_annotation_2_2=%22Treatment%20Analysis%20Plot%202%22&plot_A_annotation_3_2=%22Secondary%20analysis%22&plot_A_annotation_4_2=%22Secondary%20Table%22&plot_A_annotation_5_2=%22Secondary%20Distribution%22&plot_A_annotation_6_2=%22Secondary%20Correlation%22&plot_A_annotation_7_2=%22Secondary%20Analysis%20Results%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_2_1=%22ESR1%20Landscape%20Analysis%22&plot_B_annotation_3_1=%22Comprehensive%20ESR1%20evaluation%22&plot_B_annotation_4_1=%22Expression%20Analysis%22&plot_B_annotation_5_1=%22Mutation%20Analysis%22&plot_B_annotation_6_1=%22Response%20Analysis%22&plot_B_annotation_7_1=%22Diagnostic%20Analysis%22&plot_B_annotation_8_1=%22Complete%20ESR1%20Diagnostic%20Landscape%22&plot_A_Notes_shared=%22These%20plots%20show%20treatment%20selection%20analysis.%20See%20@fig-A-1%20and%20@fig-A-2%20for%20details.%22&plot_B_Notes_shared=%22This%20analysis%20covers%20the%20complete%20ESR1%20diagnostic%20landscape.%20See%20@fig-B-1%20for%20comprehensive%20results.%22"
-    
-    loadPresetReport(preset_url)
-    safe_showNotification("Basic Report configuration loaded successfully!", type = "default")
-  })
+# Alternative approach: Add an observer that reacts when tab changes
+observeEvent(input$nav, {
+  # When user navigates to Plots tab, it will trigger UI creation naturally
+  if (input$nav == "Plots" && !is.null(pending_preset_data())) {
+    cat("User navigated to Plots tab, UI should be created soon...\n")
+  }
+})
   
-  observeEvent(input$load_basic_report_two, {
-    preset_url <- "http://127.0.0.1:7931/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Selection%20(A)%22&load_basic_report=0&load_basic_report_two=0&update_and_copy_url=0&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=2&plot_B_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Great%20Report%22&subtitle=%22With%20lots%20of%20plots%22&name=%22Johny%20Cash%22&plot_A_x1=3&plot_A_x2=4&plot_B_x1=3&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_2_1=%22Treatment%20Analysis%20Plot%201%22&plot_A_annotation_3_1=%22Analyzing%20treatment%20effectiveness%22&plot_A_annotation_4_1=%22Summary%20Statistics%20Table%22&plot_A_annotation_5_1=%22Distribution%20Plot%22&plot_A_annotation_6_1=%22Correlation%20Plot%22&plot_A_annotation_7_1=%22Complete%20Treatment%20Analysis%22&plot_A_annotation_1_2=%22fig-A-2%22&plot_A_annotation_2_2=%22Treatment%20Analysis%20Plot%202%22&plot_A_annotation_3_2=%22Secondary%20analysis%22&plot_A_annotation_4_2=%22Secondary%20Table%22&plot_A_annotation_5_2=%22Secondary%20Distribution%22&plot_A_annotation_6_2=%22Secondary%20Correlation%22&plot_A_annotation_7_2=%22Secondary%20Analysis%20Results%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_2_1=%22ESR1%20Landscape%20Analysis%22&plot_B_annotation_3_1=%22Comprehensive%20ESR1%20evaluation%22&plot_B_annotation_4_1=%22Expression%20Analysis%22&plot_B_annotation_5_1=%22Mutation%20Analysis%22&plot_B_annotation_6_1=%22Response%20Analysis%22&plot_B_annotation_7_1=%22Diagnostic%20Analysis%22&plot_B_annotation_8_1=%22Complete%20ESR1%20Diagnostic%20Landscape%22&plot_A_Notes_shared=%22These%20plots%20show%20treatment%20selection%20analysis.%20See%20@fig-A-1%20and%20@fig-A-2%20for%20details.%22&plot_B_Notes_shared=%22This%20analysis%20covers%20the%20complete%20ESR1%20diagnostic%20landscape.%20See%20@fig-B-1%20for%20comprehensive%20results.%22"
-    
-    loadPresetReport(preset_url)
-    safe_showNotification("Basic Report Two configuration loaded successfully!", type = "default")
-  })
+# Updated preset URLs that include data for all plot types
+observeEvent(input$load_basic_report, {
+  # This URL now includes Plot C and D data
+  preset_url <- "http://127.0.0.1:6639/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=1&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_1_2=%22ESR1%20DX%20Landscape%20A.I%22&plot_A_annotation_1_3=%22~%22&plot_A_annotation_1_4=%22~%22&plot_A_annotation_1_5=%22~%22&plot_A_annotation_1_6=%22~%22&plot_A_annotation_1_7=%22~%22&plot_A_annotation_1_8=%22%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_1_2=%22Treatment%20Selection%20B.I%22&plot_B_annotation_1_3=%22Treatment%20Selection%20and%20Therapeutic%20Outcomes%22&plot_B_annotation_1_4=%22~%22&plot_B_annotation_1_5=%22~%22&plot_B_annotation_1_6=%22~%22&plot_B_annotation_1_7=%22%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_1_2=%22Real-world%20Patient%20Outcomes%20to%20First%20Tx%20Following%20ESR1%20Dx%22&plot_C_annotation_1_3=%22~%22&plot_C_annotation_1_4=%22~%22&plot_C_annotation_1_5=%22~%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_1_2=%22Sankey%20Plot%20of%20Tx%20Sequencing%20following%20ESR1%20Dx%22&plot_D_annotation_1_3=%22~%22&plot_D_annotation_1_4=%22%22&.clientValue-default-plotlyCrosstalkOpts=%7B%22on%22%3A%22plotly_click%22%2C%22persistent%22%3Afalse%2C%22dynamic%22%3Afalse%2C%22selectize%22%3Afalse%2C%22opacityDim%22%3A0.2%2C%22selected%22%3A%7B%22opacity%22%3A1%7D%2C%22debounce%22%3A0%2C%22color%22%3A%5B%5D%7D&plotly_afterplot-A=%22%5C%22Plot_D_Obj1%5C%22%22&plotly_hover-A=null&plotly_relayout-A=%22%7B%5C%22width%5C%22%3A1052.65625%2C%5C%22height%5C%22%3A655%7D%22"
+  
+  loadPresetReport(preset_url)
+  showNotification("Loading Basic Report configuration...", type = "message")
+})
+
+observeEvent(input$load_basic_report_two, {
+  # This URL now includes Plot C and D data with different values
+  preset_url <- "http://127.0.0.1:6639/?_inputs_&nav=%22Report%20Export%22&plots_subtabs=%22Treatment%20Pathways%20(D)%22&load_basic_report=1&load_basic_report_two=0&update_and_copy_url=2&download_trigger=0&parse_url_1=0&parse_url_2=0&load_report_1=0&load_report_2=0&clear_comparison=0&refresh_log=0&clear_log=0&format=%22PDF%22&plot_A_n=1&plot_B_n=1&plot_C_n=1&plot_D_n=1&bookmark_url_1=%22%22&bookmark_url_2=%22%22&title=%22My%20Report%20Title%22&subtitle=%22Analysis%20Report%22&name=%22John%20Doe%22&plot_A_x1=%22HR%2B%2FHER2%22&plot_A_Notes_shared=%22%22&plot_A_annotation_1_1=%22fig-A-1%22&plot_A_annotation_1_2=%22ESR1%20DX%20Landscape%20A.I%22&plot_A_annotation_1_3=%22~%22&plot_A_annotation_1_4=%22~%22&plot_A_annotation_1_5=%22~%22&plot_A_annotation_1_6=%22~%22&plot_A_annotation_1_7=%22~%22&plot_A_annotation_1_8=%22%22&plot_B_x1=%22HR%2B%2FHER2%22&plot_B_Notes_shared=%22%22&plot_B_annotation_1_1=%22fig-B-1%22&plot_B_annotation_1_2=%22Treatment%20Selection%20B.I%22&plot_B_annotation_1_3=%22Treatment%20Selection%20and%20Therapeutic%20Outcomes%22&plot_B_annotation_1_4=%22~%22&plot_B_annotation_1_5=%22~%22&plot_B_annotation_1_6=%22~%22&plot_B_annotation_1_7=%22%22&plot_C_x1=%22HR%2B%2FHER2%22&plot_C_Notes_shared=%22%22&plot_C_annotation_1_1=%22fig-C-1%22&plot_C_annotation_1_2=%22Real-world%20Patient%20Outcomes%20to%20First%20Tx%20Following%20ESR1%20Dx%22&plot_C_annotation_1_3=%22~%22&plot_C_annotation_1_4=%22~%22&plot_C_annotation_1_5=%22~%22&plot_C_annotation_1_6=%22%22&plot_D_x1=%22HR%2B%2FHER2%22&plot_D_Notes_shared=%22%22&plot_D_annotation_1_1=%22fig-D-1%22&plot_D_annotation_1_2=%22Sankey%20Plot%20of%20Tx%20Sequencing%20following%20ESR1%20Dx%22&plot_D_annotation_1_3=%22~%22&plot_D_annotation_1_4=%22%22&.clientValue-default-plotlyCrosstalkOpts=%7B%22on%22%3A%22plotly_click%22%2C%22persistent%22%3Afalse%2C%22dynamic%22%3Afalse%2C%22selectize%22%3Afalse%2C%22opacityDim%22%3A0.2%2C%22selected%22%3A%7B%22opacity%22%3A1%7D%2C%22debounce%22%3A0%2C%22color%22%3A%5B%5D%7D&plotly_afterplot-A=%22%5C%22Plot_D_Obj1%5C%22%22&plotly_hover-A=null&plotly_relayout-A=%22%7B%5C%22width%5C%22%3A1052.65625%2C%5C%22height%5C%22%3A655%7D%22"
+  
+  loadPresetReport(preset_url)
+  showNotification("Loading Basic Report Two configuration...", type = "message") 
+})
 
   # ────────────────────────────────────────────────────────────────
   #### Download Handler with Configuration ####
@@ -1985,6 +2835,14 @@ observe({
       if (is.null(vars_list$plot_B_caption_shared)) {
         vars_list$plot_B_caption_shared <- ""
       }
+
+      # ADD THESE TWO LINES FOR PLOT C AND D:
+      if (is.null(vars_list$plot_C_caption_shared)) {
+        vars_list$plot_C_caption_shared <- ""
+      }
+      if (is.null(vars_list$plot_D_caption_shared)) {
+        vars_list$plot_D_caption_shared <- ""
+      }
       
       # Add additional vars metadata
       vars_list$bookmark_url <- url
@@ -1999,7 +2857,7 @@ observe({
       
       isolate({
         fmt <- switch(input$format,
-          PDF = list(input = "pdf_11.qmd", format = "pdf", ext = "pdf"),
+          PDF = list(input = "pdf_15.qmd", format = "pdf", ext = "pdf"),
           HTML = list(input = "html.qmd", format = "html", ext = "html"),
           Word = list(input = "word.qmd", format = "docx", ext = "docx")
         )
@@ -2074,28 +2932,40 @@ observe({
   
   # Generate plot outputs for all configured plot types
   for (plot_type in names(PLOT_CONFIG)) {
-    config <- PLOT_CONFIG[[plot_type]]
-    
-    for (i in 1:config$max_plots) {
-      local({
-        my_i <- i
-        my_plot_type <- plot_type
-        my_config <- config
-        
-        output_name <- paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", my_i)
-        
+  config <- PLOT_CONFIG[[plot_type]]
+  
+  for (i in 1:config$max_plots) {
+    local({
+      my_i <- i
+      my_plot_type <- plot_type
+      my_config <- config
+      
+      output_name <- paste0("Plot_", toupper(substring(my_plot_type, 6, 6)), "_Obj", my_i)
+      
+      # Use conditional rendering based on plot type
+      if (my_plot_type == "plot_D") {
+        # Use renderPlotly for Plot D (Sankey diagram)
+        output[[output_name]] <- renderPlotly({
+          req(input[[paste0(my_plot_type, "_x", my_i)]])
+          generate_plot_D_content(my_i, my_config, input)
+        })
+      } else {
+        # Use renderPlot for all other plots (A, B, C)
         output[[output_name]] <- renderPlot({
           req(input[[paste0(my_plot_type, "_x", my_i)]])
           
           if (my_plot_type == "plot_A") {
             generate_plot_A_content(my_i, my_config, input)
-          } else {
+          } else if (my_plot_type == "plot_B") {
             generate_plot_B_content(my_i, my_config, input)
+          } else if (my_plot_type == "plot_C") {
+            generate_plot_C_content(my_i, my_config, input)
           }
         })
-      })
-    }
+      }
+    })
   }
+}
   
   # ────────────────────────────────────────────────────────────────
   #### Display Functions Using Configuration ####
@@ -2116,14 +2986,14 @@ observe({
     config <- PLOT_CONFIG[[plot_type]]
     steps[[length(steps) + 1]] <- list(
       Step = paste("Configure", config$label),
-      Description = paste("Choose number of plots and X variables for", config$label)
+      Description = paste("Choose number of figures per plot and X variables for", config$label)
     )
   }
   
   # Add final steps
   steps[[length(steps) + 1]] <- list(
     Step = "Review plots",
-    Description = "Review the generated plots"
+    Description = "Review the generated Figures"
   )
   steps[[length(steps) + 1]] <- list(
     Step = "Choose export format",
@@ -2290,46 +3160,26 @@ observe({
     safe_showNotification("Report 2 parameters loaded successfully!", type = "default")
   })
   
-  # Function to load parameters from comparison
-  loadPresetReport_fromParams <- function(params) {
-    if (length(params) > 0) {
-      # Update metadata inputs
-      if (!is.na(params$title)) updateTextInput(session, "title", value = params$title)
-      if (!is.na(params$subtitle)) updateTextInput(session, "subtitle", value = params$subtitle)
-      if (!is.na(params$name)) updateTextInput(session, "name", value = params$name)
-      
-      # Update plot numbers for all configured plot types
-      for (plot_type in names(PLOT_CONFIG)) {
-        n_param <- paste0(plot_type, "_n")
-        if (!is.na(params[[n_param]])) {
-          updateNumericInput(session, n_param, value = params[[n_param]])
-        }
+  # Fixed function to load parameters from comparison
+loadPresetReport_fromParams <- function(params) {
+  if (length(params) > 0) {
+    # Update metadata inputs
+    if (!is.na(params$title)) updateTextInput(session, "title", value = params$title)
+    if (!is.na(params$subtitle)) updateTextInput(session, "subtitle", value = params$subtitle)
+    if (!is.na(params$name)) updateTextInput(session, "name", value = params$name)
+    
+    # Update plot numbers for all configured plot types
+    for (plot_type in names(PLOT_CONFIG)) {
+      n_param <- paste0(plot_type, "_n")
+      if (!is.na(params[[n_param]])) {
+        updateNumericInput(session, n_param, value = params[[n_param]])
       }
-      
-      invalidateLater(500, session)
-      
-      observe({
-        # Update inputs for all configured plot types
-        for (plot_type in names(PLOT_CONFIG)) {
-          # Update X variables
-          x_pattern <- paste0("^", plot_type, "_x")
-          x_params <- params[grepl(x_pattern, names(params))]
-          for (param_name in names(x_params)) {
-            if (!is.na(x_params[[param_name]])) {
-              updateSelectInput(session, param_name, selected = x_params[[param_name]])
-            }
-          }
-          
-          # Update shared notes
-          notes_param <- paste0(plot_type, "_Notes_shared")
-          if (!is.na(params[[notes_param]])) {
-            updateTextAreaInput(session, notes_param, value = params[[notes_param]])
-          }
-        }
-      })
     }
+    
+    # Store params for later application when UI is ready
+    pending_preset_data(params)
   }
-
+}
   # Generate comparison table
   output$comparisonTable <- renderTable({
     params1 <- report1_params()
@@ -2409,7 +3259,6 @@ observe({
     if (is.null(url)) {
       "No bookmark URL yet - change an input to generate"
     } else {
-      url
     }
   })
   

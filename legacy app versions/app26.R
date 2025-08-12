@@ -1171,7 +1171,7 @@ observeEvent(input$update_and_copy_url, {
           # Only capture inputs for the actual number of plots selected
           for (i in 1:n_plots) {
             # Capture X variables (only for active plots)
-            x_var_name <- paste0(plot_type, "_x",  i) # was x_var_name <- paste0(plot_type, "_x_", i)
+            x_var_name <- paste0(plot_type, "_x_", i) 
             if (!is.null(input[[x_var_name]])) {
               all_inputs[[x_var_name]] <- input[[x_var_name]]
             }

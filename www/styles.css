@@ -2,6 +2,11 @@ input[type="number"] {
   max-width: 80%;
 }
 
+/* test*/
+body {
+  background-color: lightblue !important;
+}
+
 div.outer {
   position: fixed;
   top: 56px;
@@ -137,4 +142,86 @@ h1, h2, h3, h4 { font-weight: 400; }
 .shiny-html-output input[id*="plot_A_SubCaption_alternate_"]::placeholder {
     font-size: 11px !important;
     color: #999999 !important;
+}
+
+/*----------------------------------------------------------------------*/
+/* Your existing responsive CSS... */
+@media (min-width: 768px) {
+  .navbar { 
+      /* align-items: center !important; */
+    display: flex !important;
+  }
+  .navbar .container-fluid {
+    display: flex !important;
+    align-items: center !important;
+  }
+  .navbar-header { 
+    display: flex !important; 
+    /* align-items: center !important; */
+    float: left !important;
+  }
+  .navbar-collapse { 
+    display: flex !important; 
+    /* align-items: center !important; */
+    float: right !important;
+  }
+  .navbar-nav { 
+    display: flex !important; 
+    /* align-items: center !important; */
+    margin: 0 !important;
+  }
+  .navbar-nav > li > a { 
+    font-size: 16px !important; 
+    padding: 15px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .navbar-brand {
+    font-size: 20px !important;
+    padding: 15px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .navbar-header {
+    float: left !important;
+    width: 100% !important;
+  }
+  .navbar-toggle {
+    display: block !important;
+    float: right !important;
+    margin-right: 15px !important;
+  }
+  .navbar-collapse {
+    display: none !important;
+    width: 100% !important;
+    clear: both !important;
+  }
+  .navbar-collapse.in {
+    display: block !important;
+  }
+  .navbar-nav {
+    margin: 0 !important;
+    float: none !important;
+  }
+  .navbar-nav > li {
+    float: none !important;
+  }
+  .navbar-nav > li > a {
+    padding: 10px 15px !important;
+  }
+}
+/* Active tab styling - choose your preferred option */
+.navbar-nav > li.active > a {
+  background-color: transparent !important;
+  border-bottom: 3px solid #cc4c02 !important;
+  color: #cc4c02 !important;
+}
+
+.navbar-nav > li > a:hover,
+.navbar-nav > li > a:focus {
+  background-color: rgba(204, 76, 2, 0.1) !important;
+  color: #cc4c02 !important;
 }
