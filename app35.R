@@ -1,15 +1,3 @@
-#### Tracking changes ####
-# 1. refactor all plot annotation variables
-  #  - alternate_configs → annotation_configs
-  #  - “_SubCaption_alternate_” → “_annotation_“
-  #  - has_alternates → has_annotations
-  #  - num_alternates → num_annotations
-  #  - create_alternate_section_config → create_annotation_section_config
-  #  - generate_alternate_inputs_config → generate_annotation_inputs_config
-  #  - alternate_section → annotation_section
-  #  - alt_name → ann_name
-  #  - “Alt Caption” → “Annotation “
-
 # ────────────────────────────────────────────────────────────────
 #### Load Libraries ####
 # ────────────────────────────────────────────────────────────────
@@ -57,12 +45,6 @@ PLOT_CONFIG <- list(
 # ────────────────────────────────────────────────────────────────
 #### Global Configuration Parameters ####
 # ────────────────────────────────────────────────────────────────
-#MAX_PLOTS_A <- 6  # Maximum number of Plot A plots
-#MAX_PLOTS_B <- 6  # Maximum number of Plot B plots
-
-# Configurable Plot Labels (change these to customize all UI text)
-#PLOT_A_LABEL <- "Treatment Selection"   # Display name for Plot A everywhere
-#PLOT_B_LABEL <- "ESR1 Dx Landscape"  # Display name for Plot B everywhere
 
 REPORT_LOG_FILE <- "report_log.tsv"  # Tab-separated file for tracking reports
 
@@ -101,11 +83,9 @@ create_plot_ui_config <- function(plot_type, plot_count, input_values) {
 create_single_plot_input_config <- function(plot_type, i, input_values, config) {
   x_var_name <- paste0(plot_type, "_x", i)
   Roman_numerals <- as.roman(1:10)
-  #subcaption_name <- paste0(plot_type, "_SubCaption", i)
   
   # Get current values or defaults
   current_x <- input_values[[x_var_name]]
-  #current_subcaption <- input_values[[subcaption_name]]
   default_x <- c("wt", "hp", "disp")[min(i, 3)]
   
   base_inputs <- list(
@@ -113,12 +93,7 @@ create_single_plot_input_config <- function(plot_type, i, input_values, config) 
     selectInput(x_var_name, 
                paste0("X Variable for ", gsub("[^a-zA-Z0-9 ]", "", config$label), ".", Roman_numerals[i], ":"), 
                choices = unique(mtcars$gear),
-               selected = current_x %||% default_x)#,
-    # h6(paste0("Sub-Caption for ", config$label, " (", i, ")"), 
-    #    class = "text-secondary", style = "font-weight: bold;")#,
-    # textInput(subcaption_name, NULL, 
-    #          value = current_subcaption %||% "",
-    #          placeholder = "Brief description of this plot")
+               selected = current_x %||% default_x)
   )
   
   # Add annotation inputs if configured
@@ -231,8 +206,7 @@ generate_plot_columns_config <- function(plot_type) {
   for (i in 1:config$max_plots) {
     # Base columns
     columns <- c(columns, 
-                paste0(plot_type, "_x", i)#,
-                #paste0(plot_type, "_SubCaption", i)
+                paste0(plot_type, "_x", i)
                 )
     
     # Add annotation captions if configured
@@ -369,12 +343,6 @@ collect_plot_inputs <- function(input, plot_type, n_plots) {
             default_ref <- paste0("fig-plot-", substr(plot_type, nchar(plot_type), nchar(plot_type)),"-", numerals[i])
             inputs[[ann_name]] <- default_ref
           } else {
-            #Clean the user input (remove spaces, special chars, add prefix if needed)
-            # clean_ref <- gsub("[^a-zA-Z0-9]", "", ann_value)
-            # if (!grepl("^fig-plot-", clean_ref)) {
-            #   clean_ref <- paste0("fig-plot-", clean_ref)
-            # }
-            # inputs[[ann_name]] <- clean_ref
             inputs[[ann_name]] <- ann_value
           }
         } else {
@@ -402,7 +370,7 @@ collect_all_active_inputs <- function(input) {
   
   # Remove ALL plot-specific inputs first
   plot_patterns <- c(
-    "^plot_A_x", "^plot_B_x", # "^plot_A_SubCaption", "^plot_B_SubCaption", 
+    "^plot_A_x", "^plot_B_x", 
     "^plot_A_annotation", "^plot_B_annotation",
     "^plot_A_Notes_shared", "^plot_B_Notes_shared"
   )
@@ -437,7 +405,7 @@ collect_all_active_inputs <- function(input) {
 PARAM_PATTERNS <- list(
   metadata = c("title", "subtitle", "name"),
   base_plot = c("plot_A_n", "plot_B_n", "plot_A_Notes_shared", "plot_B_Notes_shared"),
-  dynamic_plot = c("^plot_A_x", "^plot_B_x"#,"^plot_A_SubCaption", "^plot_B_SubCaption"
+  dynamic_plot = c("^plot_A_x", "^plot_B_x"
 )
 )
 
@@ -510,13 +478,6 @@ create_readable_param_name <- function(param) {
     if (length(matches) > 1) {
       return(paste0("📊 ", config$label, " ", matches[2], " - X Variable"))
     }
-    
-    # # SubCaption pattern
-    # sub_pattern <- paste0("^", plot_type, "_SubCaption(\\d+)$")
-    # matches <- regmatches(param, regexec(sub_pattern, param))[[1]]
-    # if (length(matches) > 1) {
-    #   return(paste0("📊 ", config$label, " ", matches[2], " - Sub-Caption"))
-    # }
     
     # annotation caption pattern (only for plot types that have annotations)
     if (config$has_annotations) {
@@ -617,7 +578,6 @@ generate_input_preview_data <- function(input) {
         
         for (i in 1:n_plots) {
           x_var <- input[[paste0(plot_type, "_x", i)]]
-          #caption_var <- input[[paste0(plot_type, "_SubCaption", i)]]
           
 
         # Add shared notes
@@ -635,15 +595,6 @@ generate_input_preview_data <- function(input) {
               Value = x_var,
               stringsAsFactors = FALSE
             ))
-            
-            # Add caption if it exists
-            # if (!is.null(caption_var) && caption_var != "") {
-            #   plot_details <- rbind(plot_details, data.frame(
-            #     Setting = paste0(config$label, ".", i, " - Caption"),
-            #     Value = if(nchar(caption_var) > 50) paste0(substr(caption_var, 1, 50), "...") else caption_var,
-            #     stringsAsFactors = FALSE
-            #   ))
-            # }
             
             # Add annotation captions if this plot type has them
             if (config$has_annotations) {
@@ -720,7 +671,6 @@ generate_plot_B_content <- function(i, config, input) {
 get_plot_values <- function(plot_type, i, input) {
   Roman_numerals <- as.roman(1:10)
   x_var <- input[[paste0(plot_type, "_x", i)]]
-  #subcaption <- input[[paste0(plot_type, "_SubCaption", i)]] %||% ""
   
   # Only try to get annotation captions for plot_A
   if (plot_type == "plot_A") {
@@ -774,7 +724,7 @@ get_plot_values <- function(plot_type, i, input) {
       paste0("@fig-", substr(plot_type, nchar(plot_type), nchar(plot_type)), "-", Roman_numerals[i]) # ie fig-A-I,fig-A-II, ...
     }
   } else {
-    # defualts 
+    # defaults 
     title <- paste0(gsub("[()]", "", PLOT_CONFIG[[plot_type]]$label), ".", Roman_numerals[i])
     subtitle <- ""
     tblCap <- paste0("Panel ", Roman_numerals[i], ".1") 
@@ -786,15 +736,12 @@ get_plot_values <- function(plot_type, i, input) {
   
   list(
     x_var = x_var,
-    #subcaption = subcaption,
     title = title,
     subtitle = subtitle,
     tblCap =tblCap,
     plot1Cap = plot1Cap,
     plot2Cap = plot2Cap,
     figOvCap = figOvCap
-    #,
-    #final_caption = subcaption
   )
 }
 
@@ -961,7 +908,6 @@ create_styled_gt_table <- function(table_data, i) {
 
 # Combine plot components for Plot A
 combine_plot_A_components <- function(plots, table_component, overall_caption,
-   #final_caption,
     title, subtitle) {
   theme_border <- create_border_theme()
   
@@ -970,7 +916,6 @@ combine_plot_A_components <- function(plots, table_component, overall_caption,
       title = title,
       subtitle = subtitle,
       caption = overall_caption,
-      #caption = final_caption,
       tag_levels = '1',
       tag_suffix = ")",
       theme = theme_border
@@ -1708,9 +1653,7 @@ server <- function(input, output, session) {
         
         for (i in 1:n_plots) {
           x_var_name <- paste0(plot_type, "_x", i)
-          #subcaption_name <- paste0(plot_type, "_SubCaption", i)
           all_vals[[x_var_name]] <- input[[x_var_name]]
-          #all_vals[[subcaption_name]] <- input[[subcaption_name]]
           
           # Add annotation captions if this plot type has them
           if (config$has_annotations) {
@@ -1840,15 +1783,6 @@ server <- function(input, output, session) {
               updateSelectInput(session, param_name, selected = x_params[[param_name]])
             }
           }
-          
-          # # Update subcaptions
-          # sub_pattern <- paste0("^", plot_type, "_SubCaption")
-          # sub_params <- extracted[grepl(sub_pattern, names(extracted))]
-          # for (param_name in names(sub_params)) {
-          #   if (!is.na(sub_params[[param_name]])) {
-          #     updateTextInput(session, param_name, value = sub_params[[param_name]])
-          #   }
-          # }
           
           # Update shared notes
           notes_param <- paste0(plot_type, "_Notes_shared")
@@ -2284,15 +2218,6 @@ server <- function(input, output, session) {
               updateSelectInput(session, param_name, selected = x_params[[param_name]])
             }
           }
-          
-          # # Update subcaptions
-          # sub_pattern <- paste0("^", plot_type, "_SubCaption")
-          # sub_params <- params[grepl(sub_pattern, names(params))]
-          # for (param_name in names(sub_params)) {
-          #   if (!is.na(sub_params[[param_name]])) {
-          #     updateTextInput(session, param_name, value = sub_params[[param_name]])
-          #   }
-          # }
           
           # Update shared notes
           notes_param <- paste0(plot_type, "_Notes_shared")
