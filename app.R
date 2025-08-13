@@ -1092,12 +1092,15 @@ get_plot_values <- function(plot_type, i, input) {
     if (is.null(val)) "" else val
   }
   
-  # Common defaults using new hierarchy
+  #### Defualt Labels ####
   plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
-  default_title <- paste0("Plot ", plot_letter, ".", Roman_numerals[i])
+  title_suffix <- if(plot_letter == "A"){"ESR1 DX Landscape"} else if(plot_letter == "B"){"Treatment Selection"} else if(plot_letter == "C"){"Real-world Patient Outcomes to First Tx Following ESR1 Dx"} else if(plot_letter == "D"){"Sankey plot of tx sequencing following ESR1 Dx"}
+  default_title <- paste0(title_suffix, " ", plot_letter, ".", Roman_numerals[i])
   default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
   default_ref <- paste0("@fig-", plot_letter, "-", i)
-  
+  panel_suffix <- paste0("Panel ", plot_letter, ".", Roman_numerals[i])
+  Blank_Panel <- TRUE
+
   # SWAPPED: Plot A now returns Plot B's structure (8 annotations, 4 plots)
   if (plot_type == "plot_A") {
     list(
@@ -1105,10 +1108,10 @@ get_plot_values <- function(plot_type, i, input) {
       figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
-      plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
-      plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),
+      plot1Cap = get_ann(4, if(Blank_Panel){""} else paste0(panel_suffix, ".1")),
+      plot2Cap = get_ann(5, if(Blank_Panel){""} else paste0(panel_suffix, ".2")),
+      plot3Cap = get_ann(6, if(Blank_Panel){""} else paste0(panel_suffix, ".3")),
+      plot4Cap = get_ann(7, if(Blank_Panel){""} else paste0(panel_suffix, ".4")),
       figOvCap = get_ann(8, default_figure)
     )
   } 
@@ -1119,9 +1122,9 @@ get_plot_values <- function(plot_type, i, input) {
       figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
-      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
+      tbl1Cap = get_ann(4, if(Blank_Panel){""} else paste0(panel_suffix, ".1")),
+      plot1Cap = get_ann(5, if(Blank_Panel){""} else paste0(panel_suffix, ".2")),
+      plot2Cap = get_ann(6, if(Blank_Panel){""} else paste0(panel_suffix, ".3")),
       figOvCap = get_ann(7, default_figure)
     )
   } else if (plot_type == "plot_C") {
@@ -1130,8 +1133,8 @@ get_plot_values <- function(plot_type, i, input) {
       figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
       title = get_ann(2, default_title),
       subtitle = get_ann(3),
-      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
+      plot1Cap = get_ann(4, if(Blank_Panel){""} else paste0(panel_suffix, ".1")),
+      plot2Cap = get_ann(5, if(Blank_Panel){""} else paste0(panel_suffix, ".2")),
       figOvCap = get_ann(6, default_figure) 
     )
   } else if (plot_type == "plot_D") {
@@ -1420,79 +1423,6 @@ generate_plot_D_content <- function(i, config, input) {
   # Create and return the Sankey plot
   create_plot_D_components(sankey_data, i, values)
 }
-
-# Helper function to get plot values
-get_plot_values <- function(plot_type, i, input) {
-  Roman_numerals <- as.roman(1:10)
-  x_var <- input[[paste0(plot_type, "_x", i)]]
-  
-  # Helper to get annotation input or default - PROPERLY HANDLES ~
-  get_ann <- function(panel_pos, default = "") {
-    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
-    # If it's ~, return empty string without applying default
-    if (!is.null(val) && val == "~") return("")
-    # Otherwise, if null or empty, use default
-    if (is.null(val) || val == "") default else val
-  }
-  
-  # Special helper for reference label
-  get_ref_label <- function(panel_pos) {
-    val <- input[[paste0(plot_type, "_annotation_", i, "_", panel_pos)]]
-    # If it's ~, return empty string
-    if (!is.null(val) && val == "~") return("")
-    if (is.null(val)) "" else val
-  }
-  
-  # Common defaults using new hierarchy
-  plot_letter <- toupper(substr(plot_type, nchar(plot_type), nchar(plot_type)))
-  default_title <- paste0("Plot ", plot_letter, ".", Roman_numerals[i])
-  default_figure <- paste0("Figure ", plot_letter, ".", Roman_numerals[i])
-  default_ref <- paste0("@fig-", plot_letter, "-", i)
-  
-  if (plot_type == "plot_A") {
-    list(
-      x_var = x_var,
-      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
-      title = get_ann(2, default_title),
-      subtitle = get_ann(3),
-      tbl1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot1Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
-      plot2Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
-      figOvCap = get_ann(7, default_figure)
-    )
-  } else if (plot_type == "plot_B") {
-    list(
-      x_var = x_var,
-      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
-      title = get_ann(2, default_title),
-      subtitle = get_ann(3),
-      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
-      plot3Cap = get_ann(6, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".3")),
-      plot4Cap = get_ann(7, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".4")),
-      figOvCap = get_ann(8, default_figure)
-    )
-  } else if (plot_type == "plot_C") {
-    list(
-      x_var = x_var,
-      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
-      title = get_ann(2, default_title),
-      subtitle = get_ann(3),
-      plot1Cap = get_ann(4, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".1")),
-      plot2Cap = get_ann(5, paste0("Panel ", plot_letter, ".", Roman_numerals[i], ".2")),
-      figOvCap = get_ann(6, default_figure) 
-    )
-  } else if (plot_type == "plot_D") {
-    list(
-      x_var = x_var,
-      figRef = if (get_ref_label(1) != "") paste0("@", gsub("[^a-zA-Z0-9-]", "", get_ref_label(1))) else default_ref,
-      title = get_ann(2, default_title),
-      subtitle = get_ann(3),
-      figOvCap = get_ann(4, default_figure) 
-    )
-  }
-}
-
 
 # Create plot components for Plot A - Treatment Selection
 create_plot_B_components <- function(dat, i, values, input) {
