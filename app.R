@@ -662,25 +662,6 @@ check_plot_visited <- function(plot_type, input) {
 }
 
 
-# Generate reactive expressions for plot validation
-generate_plot_validation_reactives <- function() {
-  validation_reactives <- list()
-  
-  for (plot_type in names(PLOT_CONFIG)) {
-    local({
-      my_plot_type <- plot_type
-      reactive_name <- paste0(my_plot_type, "_visited")
-      
-      validation_reactives[[reactive_name]] <- reactive({
-        check_plot_visited(my_plot_type, input)
-      })
-    })
-  }
-  
-  return(validation_reactives)
-}
-
-
 # ────────────────────────────────────────────────────────────────
 #### Configuration Integration Functions ####
 # ────────────────────────────────────────────────────────────────
