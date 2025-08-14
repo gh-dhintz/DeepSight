@@ -641,27 +641,6 @@ generate_plot_columns_config <- function(plot_type) {
   return(columns)
 }
 
-
-# ────────────────────────────────────────────────────────────────
-#### Validation Functions ####
-# ────────────────────────────────────────────────────────────────
-
-# Check if a plot type has been visited/configured
-check_plot_visited <- function(plot_type, input) {
-  n_plots <- input[[paste0(plot_type, "_n")]]
-  
-  if (!is.null(n_plots) && n_plots > 0) {
-    for (i in 1:n_plots) {
-      if (!is.null(input[[paste0(plot_type, "_x", i)]])) {
-        return(TRUE)
-      }
-    }
-  }
-  
-  return(FALSE)
-}
-
-
 # ────────────────────────────────────────────────────────────────
 #### Configuration Integration Functions ####
 # ────────────────────────────────────────────────────────────────
@@ -717,34 +696,6 @@ initialize_log_file_config <- function() {
   }
 }
 
-# Generate checklist data using configuration
-generate_checklist_data <- function(input) {
-  checklist_data <- data.frame(
-    Section = character(),
-    Status = character(),
-    Description = character(),
-    stringsAsFactors = FALSE
-  )
-  
-  for (plot_type in names(PLOT_CONFIG)) {
-    config <- PLOT_CONFIG[[plot_type]]
-    is_visited <- check_plot_visited(plot_type, input)
-    
-    checklist_data <- rbind(checklist_data, data.frame(
-      Section = config$label,
-      Status = if(is_visited) "✅ Completed" else "❌ Not Visited",
-      Description = if(is_visited) {
-        paste(config$label, "section has been configured")
-      } else {
-        paste("Please visit", config$label, "tab to configure plots")
-      },
-      stringsAsFactors = FALSE
-    ))
-  }
-  
-  return(checklist_data)
-}
-
 # Create shared inputs section
 create_shared_inputs_config <- function(plot_type, input_values, config) {
   Roman_numerals <- as.roman(1:10)
@@ -764,8 +715,6 @@ create_shared_inputs_config <- function(plot_type, input_values, config) {
                  height = "100px", width = "100%")
   )
 }
-
-
 
 # ────────────────────────────────────────────────────────────────
 #### Input Collection Functions ####
@@ -1256,66 +1205,62 @@ generate_input_preview_data <- function(input) {
   
   for (plot_type in names(PLOT_CONFIG)) {
     config <- PLOT_CONFIG[[plot_type]]
-    section_visited <- check_plot_visited(plot_type, input)
     plot_label_clean <- gsub("[()]", "", config$label)
     
-    # Add summary only if tabs have been visited
-    if (section_visited) {
-      summary_data <- rbind(summary_data, data.frame(
-        Setting = paste(config$label, "- Number of Plots"),
-        Value = as.character(input[[paste0(plot_type, "_n")]]),
-        stringsAsFactors = FALSE
+    summary_data <- rbind(summary_data, data.frame(
+      Setting = paste(config$label, "- Number of Plots"),
+      Value = as.character(input[[paste0(plot_type, "_n")]]),
+      stringsAsFactors = FALSE
       ))
       
-      # Add individual plot details
-      if (!is.null(input[[paste0(plot_type, "_n")]]) && input[[paste0(plot_type, "_n")]] > 0) {
-        n_plots <- input[[paste0(plot_type, "_n")]]
+    # Add individual plot details
+    if (!is.null(input[[paste0(plot_type, "_n")]]) && input[[paste0(plot_type, "_n")]] > 0) {
+      n_plots <- input[[paste0(plot_type, "_n")]]
+      
+      for (i in 1:n_plots) {
+        x_var <- input[[paste0(plot_type, "_x", i)]]
         
-        for (i in 1:n_plots) {
-          x_var <- input[[paste0(plot_type, "_x", i)]]
+        # Add shared notes
+        shared_notes_var <- input[[paste0(plot_type, "_Notes_shared")]]
+        # Display ~ as blank in preview
+        if (!is.null(shared_notes_var) && shared_notes_var == "~") {
+          shared_notes_var <- "(blank)"
+        }
+        if (!is.null(shared_notes_var) && shared_notes_var != "") {
+          plot_details <- rbind(plot_details, data.frame(
+            Setting = paste0(config$label, " - Notes"),
+            Value = if(nchar(shared_notes_var) > 50) paste0(substr(shared_notes_var, 1, 50), "...") else shared_notes_var,
+            stringsAsFactors = FALSE
+          ))
+        }
+        
+        if (!is.null(x_var)) {
+          plot_details <- rbind(plot_details, data.frame(
+            Setting = paste0(plot_label_clean, ".", i, " - X Variable"),
+            Value = x_var,
+            stringsAsFactors = FALSE
+          ))
           
-          # Add shared notes
-          shared_notes_var <- input[[paste0(plot_type, "_Notes_shared")]]
-          # Display ~ as blank in preview
-          if (!is.null(shared_notes_var) && shared_notes_var == "~") {
-            shared_notes_var <- "(blank)"
-          }
-          if (!is.null(shared_notes_var) && shared_notes_var != "") {
-            plot_details <- rbind(plot_details, data.frame(
-              Setting = paste0(config$label, " - Notes"),
-              Value = if(nchar(shared_notes_var) > 50) paste0(substr(shared_notes_var, 1, 50), "...") else shared_notes_var,
-              stringsAsFactors = FALSE
-            ))
-          }
-          
-          if (!is.null(x_var)) {
-            plot_details <- rbind(plot_details, data.frame(
-              Setting = paste0(plot_label_clean, ".", i, " - X Variable"),
-              Value = x_var,
-              stringsAsFactors = FALSE
-            ))
-            
-            # Add annotation captions if this plot type has them
-            if (config$has_annotations) {
-              for (j in 1:config$num_annotations) {
-                ann_var <- input[[paste0(plot_type, "_annotation_", i, "_", j)]]
-                
-                # Display ~ as (blank) in preview
-                display_value <- ann_var
-                if (!is.null(ann_var) && ann_var == "~") {
-                  display_value <- "(blank)"
-                }
-                
-                # Use plot-specific labels from configuration
-                annotation_labels <- config$display_labels
-                
-                if (!is.null(ann_var) && ann_var != "") {
-                  plot_details <- rbind(plot_details, data.frame(
-                    Setting = paste0(plot_label_clean, ".", i, " - ", annotation_labels[j]),
-                    Value = if(nchar(display_value) > 50) paste0(substr(display_value, 1, 50), "...") else display_value,
-                    stringsAsFactors = FALSE
-                  ))
-                }
+          # Add annotation captions if this plot type has them
+          if (config$has_annotations) {
+            for (j in 1:config$num_annotations) {
+              ann_var <- input[[paste0(plot_type, "_annotation_", i, "_", j)]]
+              
+              # Display ~ as (blank) in preview
+              display_value <- ann_var
+              if (!is.null(ann_var) && ann_var == "~") {
+                display_value <- "(blank)"
+              }
+              
+              # Use plot-specific labels from configuration
+              annotation_labels <- config$display_labels
+              
+              if (!is.null(ann_var) && ann_var != "") {
+                plot_details <- rbind(plot_details, data.frame(
+                  Setting = paste0(plot_label_clean, ".", i, " - ", annotation_labels[j]),
+                  Value = if(nchar(display_value) > 50) paste0(substr(display_value, 1, 50), "...") else display_value,
+                  stringsAsFactors = FALSE
+                ))
               }
             }
           }
@@ -1326,16 +1271,6 @@ generate_input_preview_data <- function(input) {
   
   # Combine summary and details
   final_data <- rbind(summary_data, plot_details)
-  
-  # If no plots have been configured/visited, still show metadata
-  if (nrow(plot_details) == 0) {
-    final_data <- rbind(final_data, data.frame(
-      Setting = "Plots Status",
-      Value = "Visit plot tabs to configure plots for the report",
-      stringsAsFactors = FALSE
-    ))
-  }
-  
   return(final_data)
 }
 
@@ -2105,11 +2040,6 @@ create_report_export_tab <- function() {
       style = "margin-bottom: 0; font-size: 13px; color: #6c757d;")
         ),
     
-    ###### Checklist Section ######
-    h4("Checklist Before Exporting", class = "text-primary"),
-    p("Please ensure all required sections are completed before exporting:"),
-    tableOutput("checklistTable"),
-    
     ###### Preview Section ######
     br(),
     h4("Report Preview", class = "text-primary"),
@@ -2117,22 +2047,8 @@ create_report_export_tab <- function() {
     
     # Input values table
     tableOutput("inputPreviewTable"),
-    
     br(),
-    # Conditional download button - only show when all conditions are met
-    conditionalPanel(
-      condition = "output.allConditionsMet == true",
-      actionButton("download_trigger", "Download Report", class = "btn btn-primary btn-lg")
-    ),
-    conditionalPanel(
-      condition = "output.allConditionsMet == false",
-      div(
-        class = "alert alert-warning",
-        style = "margin-top: 10px; padding: 15px;",
-        h5("⚠ Cannot Download Yet", class = "text-warning"),
-        p("Please complete the checklist above before downloading your report.", style = "margin-bottom: 0;")
-      )
-    ),
+    actionButton("download_trigger", "Download Report", class = "btn btn-primary btn-lg"),    
     downloadLink("download_report_link", "Download Link", style = "display:none;")
   )
 }
@@ -2304,7 +2220,9 @@ server <- function(input, output, session) {
   
   # Generate input and output UI renders for all configured plot types
   generate_ui_renders(input, output, session)
-# Force all plot UIs to render even when hidden
+
+# Force all plot UIs to render even when hidden 
+## ie so report can be downloaded right away without having to navigate to each plot tab (also fixes manual loading problem with preset_reports)
 for (plot_type in names(PLOT_CONFIG)) {
   outputOptions(output, paste0(plot_type, "_inputs_ui"), suspendWhenHidden = FALSE)
   outputOptions(output, paste0(plot_type, "_outputs_ui"), suspendWhenHidden = FALSE)
@@ -2334,30 +2252,6 @@ for (plot_type in names(PLOT_CONFIG)) {
   plot_B_ui_generation_in_progress <- reactiveVal(FALSE)
   bookmark_in_progress <- reactiveVal(FALSE)
   
-  # ────────────────────────────────────────────────────────────────
-  #### Generate Plot Validation Reactives for All Plot Types ####
-  # ────────────────────────────────────────────────────────────────
-  
-  # Create validation reactives for all configured plot types
-  plot_validation_reactives <- list()
-  
-  for (plot_type in names(PLOT_CONFIG)) {
-    local({
-      my_plot_type <- plot_type
-      
-      plot_validation_reactives[[paste0(my_plot_type, "_visited")]] <<- reactive({
-        check_plot_visited(my_plot_type, input)
-      })
-    })
-  }
-  
-  # Create combined validation reactive
-  all_plots_visited <- reactive({
-    all(sapply(names(PLOT_CONFIG), function(plot_type) {
-      check_plot_visited(plot_type, input)
-    }))
-  })
-
   # ────────────────────────────────────────────────────────────────
   #### Bookmark Processing (keeping your original logic) ####
   # ────────────────────────────────────────────────────────────────
@@ -2500,7 +2394,6 @@ parseBookmarkURL <- function(url) {
   return(param_list)
 }
  
-# Also update your loadPresetReport function to work with this approach
 # Also update your loadPresetReport function to work with this approach
 loadPresetReport <- function(preset_url) {
   parsed <- parseBookmarkURL(preset_url)
@@ -2704,28 +2597,9 @@ observeEvent(input$load_basic_report_two, {
   
   # Simplified download trigger using configuration
   observeEvent(input$download_trigger, {
-    if (all_plots_visited()) {
-      download_requested(TRUE)
-      session$doBookmark()
-    } else {
-      # Show error modal with missing conditions
-      missing_sections <- c()
-      for (plot_type in names(PLOT_CONFIG)) {
-        if (!check_plot_visited(plot_type, input)) {
-          missing_sections <- c(missing_sections, paste("Configure", PLOT_CONFIG[[plot_type]]$label, "plots"))
-        }
-      }
-      
-      showModal(modalDialog(
-        title = "Cannot Download Report",
-        p("Please complete the checklist before downloading your report:"),
-        tags$ul(lapply(missing_sections, tags$li)),
-        easyClose = TRUE,
-        footer = actionButton("close_modal", "OK", class = "btn btn-primary", 
-                            `data-dismiss` = "modal")
-      ))
-    }
-  })
+  download_requested(TRUE)
+  session$doBookmark()
+})
   
   # Combined button handler for bookmark URL
   observeEvent(input$update_and_copy_url, {
@@ -2955,18 +2829,7 @@ observeEvent(input$load_basic_report_two, {
   
   return(guide_df)
 })
-  
-  # Checklist Table using configuration
-  output$checklistTable <- renderTable({
-    generate_checklist_data(input)
-  }, striped = TRUE, hover = TRUE)
-  
-  # Check if all conditions are met for download
-  output$allConditionsMet <- reactive({
-    all_plots_visited()
-  })
-  outputOptions(output, "allConditionsMet", suspendWhenHidden = FALSE)
-  
+
   # Input Preview Table using configuration
   output$inputPreviewTable <- renderTable({
     generate_input_preview_data(input)
