@@ -445,6 +445,7 @@ PLOT_CONFIG <- list(
 REPORT_LOG_FILE <- "config/report_log.tsv"  # Tab-separated file for tracking reports
 
 # addResourcePath("css", "www")
+addResourcePath(prefix = "static", directoryPath = "www") # so app.js is exposed
 addResourcePath("svg", "assets/images")
 
 # ────────────────────────────────────────────────────────────────
@@ -2149,7 +2150,7 @@ ui <- function(request) {
       tags$link(rel = "icon", href = "svg/Blood_Drop_Full_Color.svg", type = "image/svg+xml"),
       tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
       # Add collapsible carrot for Plot Annotations & CLIPBOARD 
-      tags$script(src = "app.js")
+      tags$script(src = "static/app.js")
     ),
     
     # Navigation bar with dynamic content
