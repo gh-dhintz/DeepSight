@@ -4,8 +4,8 @@
 .Rproj.user
 
 # scratch files
-*scratch
-*foo
+scratch*
+foo*
 
 # Generated files
 *.pdf
