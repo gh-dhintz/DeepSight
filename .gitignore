@@ -3,6 +3,10 @@
 .RData
 .Rproj.user
 
+# scratch files
+*scratch
+*foo
+
 # Generated files
 *.pdf
 *.html
@@ -17,4 +21,5 @@ archive/
 Thumbs.db
 
 # miscellaneous
+.vscode
 .aider*

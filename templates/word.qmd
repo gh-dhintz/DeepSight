@@ -44,8 +44,8 @@ library(yaml)
 
 # Read plot vars from YAML file
 # Data structure: params (metadata via execute_params) + vars 
-if (file.exists("report_vars.yaml")) {
-  yaml_data <- yaml::read_yaml("report_vars.yaml")
+if (file.exists("config/report_vars.yaml")) {
+  yaml_data <- yaml::read_yaml("config/report_vars.yaml")
   vars <- yaml_data$vars  # Plot variables
   # Note: metadata (title, subtitle, name) comes via execute_params, not from YAML
 } else {
