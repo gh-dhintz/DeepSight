@@ -1341,48 +1341,6 @@ generate_plot_D_content <- function(i, config, input) {
   create_plot_D_components(sankey_data, i, values)
 }
 
-# Create plot components for Plot A - Treatment Selection
-create_plot_B_components <- function(dat, i, values, input) {
-  base_theme <- create_base_plot_theme()
-  values <- get_plot_values("plot_A", i, input)
-  
-  # Panel 1: Time to Treatment Initiation
-  p1 <- ggplot(dat, aes(x = days_to_tx)) +
-    geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
-    base_theme +
-    labs(
-      title = paste0("Days to Treatment Post-ESR1 Dx (", i, ")"), 
-      x = "Days from ESR1 Diagnosis", 
-      y = "Number of Patients",
-      caption = values$plot1Cap 
-    ) +
-    theme(plot.margin = unit(c(0.8, 0.1, 0.1, 1), "cm"))
-  
-  # Panel 2: Treatment Duration by Line
-  avg_duration <- dat %>%
-    group_by(treatment_line, therapy_type) %>%
-    summarise(avg_months = mean(time_to_ttd / 30.44, na.rm = TRUE), .groups = "drop")
-  
-  p2 <- ggplot(avg_duration, aes(x = factor(treatment_line), y = avg_months, fill = therapy_type)) +
-    geom_col(position = "dodge", color = "gray20", alpha = 0.8) +
-    scale_fill_manual(values = c(
-      "Chemotherapy" = "#BFD7EA",
-      "Endocrine" = "#9CBFD9",
-      "Targeted Agent" = "#7FA6C9",
-      "Immunotherapy" = "#5E8FBF"
-    )) +
-    base_theme +
-    labs(
-      title = paste0("Average Treatment Duration by Line (", i, ")"), 
-      x = "Treatment Line", 
-      y = "Average Duration (Months)",
-      fill = "Therapy Type",
-      caption = values$plot2Cap 
-    ) +
-    theme(plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), "cm"))
-  
-  list(p1 = p1, p2 = p2)
-}
 
 # Create plot components for Plot B - ESR1 Landscape
 create_plot_A_components <- function(dat, i, values) {
@@ -1438,6 +1396,49 @@ create_plot_A_components <- function(dat, i, values) {
     theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt"))
 
   list(p1 = p1, p2 = p2, p3 = p3, p4 = p4)
+}
+
+# Create plot components for Plot B - Treatment Selection
+create_plot_B_components <- function(dat, i, values, input) {
+  base_theme <- create_base_plot_theme()
+  values <- get_plot_values("plot_A", i, input)
+  
+  # Panel 1: Time to Treatment Initiation
+  p1 <- ggplot(dat, aes(x = days_to_tx)) +
+    geom_histogram(fill = color_primary, color = color_secondary, alpha = 0.7, bins = 15) +
+    base_theme +
+    labs(
+      title = paste0("Days to Treatment Post-ESR1 Dx (", i, ")"), 
+      x = "Days from ESR1 Diagnosis", 
+      y = "Number of Patients",
+      caption = values$plot1Cap 
+    ) +
+    theme(plot.margin = unit(c(0.8, 0.1, 0.1, 1), "cm"))
+  
+  # Panel 2: Treatment Duration by Line
+  avg_duration <- dat %>%
+    group_by(treatment_line, therapy_type) %>%
+    summarise(avg_months = mean(time_to_ttd / 30.44, na.rm = TRUE), .groups = "drop")
+  
+  p2 <- ggplot(avg_duration, aes(x = factor(treatment_line), y = avg_months, fill = therapy_type)) +
+    geom_col(position = "dodge", color = "gray20", alpha = 0.8) +
+    scale_fill_manual(values = c(
+      "Chemotherapy" = "#BFD7EA",
+      "Endocrine" = "#9CBFD9",
+      "Targeted Agent" = "#7FA6C9",
+      "Immunotherapy" = "#5E8FBF"
+    )) +
+    base_theme +
+    labs(
+      title = paste0("Average Treatment Duration by Line (", i, ")"), 
+      x = "Treatment Line", 
+      y = "Average Duration (Months)",
+      fill = "Therapy Type",
+      caption = values$plot2Cap 
+    ) +
+    theme(plot.margin = unit(c(2.2, 0.1, 0.05, 0.1), "cm"))
+  
+  list(p1 = p1, p2 = p2)
 }
 
 # Create plot components for Plot C (Survival Analysis)
